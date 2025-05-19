@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linq - Energy Markets</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+    <style>
+        /* Page-specific styles for Markets.html */
+        body {
+            font-family: 'Lexend', sans-serif;
+            background-color: #0A0A0A;
+            color: #E0E0E0;
+            font-weight: 400;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        body.overflow-hidden { /* From header_styles.css or shared logic */
+            overflow: hidden;
+        }
+
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1A1A1A; }
+        ::-webkit-scrollbar-thumb { background-color: #333333; border-radius: 10px; border: 2px solid #1A1A1A; }
+        ::-webkit-scrollbar-thumb:hover { background-color: #4A4A4A; }
+
+        /* Header Styles (Copied from community.html for consistency if header_styles.css is not used or is incomplete) */
+        /* It's better if header.html is self-contained or header_styles.css is comprehensive */
+        nav.fixed {
+            background-color: rgba(10, 10, 10, 0.85);
+            backdrop-filter: blur(10px) saturate(150%);
+            -webkit-backdrop-filter: blur(10px) saturate(150%);
+            border-bottom: 1px solid #222222;
+        }
+        .nav-link {
+            transition: color 0.2s ease, opacity 0.2s ease, background-color 0.2s ease;
+            font-weight: 500;
+            color: #B0B0B0;
+            opacity: 0.8;   
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.375rem;
+            font-size: 0.875rem; 
+        }
+        .nav-link:hover { 
+            color: #FFFFFF;
+            opacity: 1;
+            background-color: rgba(255,255,255,0.05);
+        }
+        .nav-link.active {
+            color: #FFFFFF; 
+            opacity: 1;
+            background-color: transparent; 
+        }
+        #authLinkDesktopLogin.nav-link-button {
+            background-color: #00BFFF; 
+            color: #FFFFFF !important; 
+            opacity: 1 !important; 
+            padding: 0.5rem 1rem; 
+        }
+        #authLinkDesktopLogin.nav-link-button:hover {
+            background-color: #00A9E0; 
+            opacity: 1;
+        }
+        .profile-icon-placeholder { 
+            width: 2.25rem; 
+            height: 2.25rem; 
+            background-color: #333; 
+            border-radius: 50%; 
+            display: inline-flex; align-items: center; justify-content: center; 
+            cursor: pointer; 
+            border: 2px solid #4A4A4A; 
+        }
+        .profile-icon-placeholder svg { width: 1.25rem; height: 1.25rem; color: #B0B0B0; } 
+        .profile-icon-placeholder:hover { border-color: #00BFFF; } 
+        .desktop-hamburger-menu { position: relative; display: inline-block; }
+        .desktop-hamburger-icon { cursor: pointer; padding: 0.375rem; color: #B0B0B0; border-radius: 0.25rem;} 
+        .desktop-hamburger-icon:hover { color: #FFFFFF; background-color: rgba(255,255,255,0.1); }
+        .desktop-hamburger-icon svg { width: 1.5rem; height: 1.5rem; } 
+        .slide-out-panel { 
+            display: flex; 
+            flex-direction: column;
+            position: fixed; 
+            top: 0; 
+            right: 0; 
+            width: 320px; 
+            height: 100vh; 
+            background-color: #18181B; 
+            box-shadow: -10px 0 30px rgba(0,0,0,0.4); 
+            z-index: 1001; 
+            transform: translateX(100%); 
+            transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); 
+            padding: 1.5rem; 
+            overflow-y: auto; 
+            border-left: 1px solid #3F3F46; 
+        }
+        .slide-out-panel.open { transform: translateX(0); }
+        .slide-out-panel-header {
+            display: flex; justify-content: flex-end; align-items: center;
+            padding-bottom: 1.25rem; margin-bottom: 1.25rem; border-bottom: 1px solid #3F3F46; 
+        }
+        .slide-out-panel-close-btn {
+            background: none; border: none; color: #A0A0A0; font-size: 1.875rem; 
+            cursor: pointer; padding: 0.25rem; line-height: 1;
+            transition: color 0.2s ease, transform 0.2s ease;
+        }
+        .slide-out-panel-close-btn:hover { color: #FFFFFF; transform: rotate(90deg) scale(1.1); }
+        .slide-out-panel-nav { flex-grow: 1; display: flex; flex-direction: column; }
+        .slide-out-panel a {
+            color: #D4D4D8; padding: 1rem 1.25rem; text-decoration: none; display: block; 
+            font-size: 0.95rem; font-weight: 500; 
+            transition: background-color 0.2s ease, color 0.2s ease, border-left-color 0.2s ease; 
+            border-left: 4px solid transparent; margin: 0.375rem 0; border-radius: 0.375rem; 
+        }
+        .slide-out-panel a:hover { background-color: #27272A; color: #FFFFFF; border-left-color: #00BFFF; }
+        .slide-out-panel #logoutButtonSlideout { 
+            color: #F87171 !important; margin-top: auto; padding-top: 1rem; border-top: 1px solid #3F3F46; 
+        }
+        .slide-out-panel #logoutButtonSlideout:hover { 
+            background-color: rgba(248, 113, 113, 0.1); color: #FECACA !important; border-left-color: #F87171;
+        } 
+        #menu-overlay {
+            display: none; position: fixed; inset: 0;
+            background-color: rgba(0, 0, 0, 0.65); z-index: 1000; 
+            opacity: 0; transition: opacity 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+        #menu-overlay.active { display: block; opacity: 1; }
+        #mobile-menu .nav-link.active { color: #FFFFFF; background-color: rgba(0, 191, 255, 0.1); opacity: 1; }
+        /* End of Header Styles */
+
+
+        .page-content-wrapper {
+            flex-grow: 1;
+            padding-bottom: 4rem;
+            width: 100%;
+            max-width: 1200px; 
+            margin: 0 auto;
+            padding-left: 1rem;
+            padding-right: 1rem;
+            padding-top: 80px; /* Adjusted: Content starts below the fixed header */
+        }
+
+        .page-main-title {
+            font-size: 2.8rem; 
+            font-weight: 700; 
+            color: #FFFFFF; 
+            margin-bottom: 0.5rem;
+            text-shadow: 0px 2px 10px rgba(0, 191, 255, 0.3);
+            text-align: center; 
+            margin-top: 2rem; 
+        }
+        .page-main-title .accent-text { 
+            color: #00BFFF; 
+        }
+         .page-subtitle { 
+            font-size: 1.1rem;
+            color: #A0A0A0; 
+            margin-top: 0.5rem;
+            text-align: center;
+            margin-bottom: 2.5rem;
+            font-weight: 400;
+        }
+        
+        /* Styles from the original markets.html for content */
+        .glassmorphic-panel {
+            background: rgba(28, 28, 28, 0.75);
+            backdrop-filter: blur(8px) saturate(120%);
+            -webkit-backdrop-filter: blur(8px) saturate(120%);
+            border: 1px solid #2A2A2A;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+            color: #E0E0E0;
+        }
+        .tab-active {
+            border-color: #00BFFF;
+            color: #00BFFF;
+            background-color: rgba(0, 191, 255, 0.1);
+            font-weight: 500;
+        }
+        .tab-inactive {
+            border-color: transparent;
+            color: #9CA3AF;
+        }
+        .tab-inactive:hover {
+            color: #E0E0E0;
+        }
+        .table-header th {
+            position: sticky;
+            top: 0px; 
+            background-color: rgba(20, 20, 20, 0.95); /* Darker for better contrast with content */
+            color: #B0B0B0;
+            z-index: 10;
+        }
+        #energyCompaniesBody tr:hover, 
+        #commodities-content tbody tr:hover,
+        #equities-content tbody tr:hover,
+        #treasuries-content tbody tr:hover {
+            background-color: rgba(255, 255, 255, 0.03);
+        }
+        #energyCompaniesBody td, 
+        #commodities-content tbody td,
+        #equities-content tbody td,
+        #treasuries-content tbody td {
+            color: #D1D5DB;
+            border-bottom: 1px solid #2A2A2A;
+            padding-top: 0.85rem; 
+            padding-bottom: 0.85rem;
+        }
+        #commodities-content tbody tr:last-child td,
+        #equities-content tbody tr:last-child td,
+        #treasuries-content tbody tr:last-child td,
+        #energyCompaniesBody tr:last-child td {
+            border-bottom: none;
+        }
+        #energyCompaniesBody .font-medium, 
+        #commodities-content .font-medium,
+        #equities-content .font-medium,
+        #treasuries-content .font-medium {
+            color: #E5E7EB;
+        }
+        .sortable:hover { cursor: pointer; color: #00BFFF; }
+        .sort-asc::after { content: ' ▲'; font-size: 0.7em; color: #00BFFF; }
+        .sort-desc::after { content: ' ▼'; font-size: 0.7em; color: #00BFFF; }
+        .text-green-positive { color: #22C55E !important; } 
+        .text-red-negative { color: #EF4444 !important; } 
+        .section-heading { color: #FFFFFF; }
+        .filter-search-input, .filter-select {
+            background-color: rgba(40, 40, 40, 0.8);
+            border: 1px solid #3A3A3A;
+            color: #E0E0E0;
+            border-radius: 0.375rem; /* rounded-md */
+            padding: 0.6rem 0.75rem;
+            font-size: 0.875rem; /* text-sm */
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        .filter-search-input:focus, .filter-select:focus {
+            outline: none;
+            border-color: #00BFFF;
+            box-shadow: 0 0 0 2px rgba(0, 191, 255, 0.3);
+        }
+        .filter-select option {
+            background-color: #1C1C1C;
+            color: #E0E0E0;
+        }
+        .filter-container label {
+            color: #B0B0B0;
+            font-size: 0.875rem;
+            margin-bottom: 0.25rem;
+            display: block;
+        }
+
+        .footer {
+            background-color: #080808; color: #A0A0A0; padding: 2.5rem 1rem;
+            border-top: 1px solid #1A1A1A; text-align: center; font-size: 0.875rem; margin-top: auto;
+        }
+        .footer a { color: #B0B0B0; transition: color 0.2s ease; }
+        .footer a:hover { color: #00BFFF; }
+
+    </style>
+</head>
+<body class="antialiased">
+    <div id="header-placeholder">
+        </div>
+
+    <main class="page-content-wrapper">
+        <header class="page-header text-center">
+            <h1 class="page-main-title">Energy <span class="accent-text">Markets</span> Overview</h1>
+            <p class="page-subtitle">Real-time data and analysis of key energy commodities and equities.</p>
+        </header>
+
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <section id="prices" class="mb-12">
+                <div class="glassmorphic-panel rounded-xl p-6">
+                    <div class="flex border-b border-gray-700 mb-6">
+                        <button data-tab="commodities" class="tab-button py-3 px-6 border-b-2 font-medium text-sm md:text-base tab-active">Commodities</button>
+                        <button data-tab="equities" class="tab-button py-3 px-6 border-b-2 font-medium text-sm md:text-base tab-inactive">Equities</button>
+                        <button data-tab="treasuries" class="tab-button py-3 px-6 border-b-2 font-medium text-sm md:text-base tab-inactive">Treasuries</button>
+                    </div>
+
+                    <div id="commodities-content" class="tab-content">
+                        <table class="w-full text-left">
+                            <thead class="text-xs uppercase table-header">
+                                <tr>
+                                    <th scope="col" class="py-3 px-4">Commodity</th>
+                                    <th scope="col" class="py-3 px-4 text-right">Price</th>
+                                    <th scope="col" class="py-3 px-4 text-right">Change</th>
+                                    <th scope="col" class="py-3 px-4 text-right">% Change</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="py-4 px-4 font-medium">WTI Crude</td>
+                                    <td class="py-4 px-4 text-right">$78.50</td>
+                                    <td class="py-4 px-4 text-right text-green-positive">+0.39</td>
+                                    <td class="py-4 px-4 text-right text-green-positive">+0.50%</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-4 px-4 font-medium">Brent Crude</td>
+                                    <td class="py-4 px-4 text-right">$82.30</td>
+                                    <td class="py-4 px-4 text-right text-red-negative">-0.16</td>
+                                    <td class="py-4 px-4 text-right text-red-negative">-0.20%</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-4 px-4 font-medium">RBOB Gasoline</td>
+                                    <td class="py-4 px-4 text-right">$2.45</td>
+                                    <td class="py-4 px-4 text-right text-green-positive">+0.03</td>
+                                    <td class="py-4 px-4 text-right text-green-positive">+1.10%</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-4 px-4 font-medium">Natural Gas (HH)</td>
+                                    <td class="py-4 px-4 text-right">$2.75</td>
+                                    <td class="py-4 px-4 text-right text-green-positive">+0.06</td>
+                                    <td class="py-4 px-4 text-right text-green-positive">+2.30%</td>
+                                </tr>
+                                <tr> 
+                                    <td class="py-4 px-4 font-medium">Heating Oil</td>
+                                    <td class="py-4 px-4 text-right">$2.80</td>
+                                    <td class="py-4 px-4 text-right text-red-negative">-0.01</td>
+                                    <td class="py-4 px-4 text-right text-red-negative">-0.50%</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div id="equities-content" class="tab-content hidden">
+                        <table class="w-full text-left">
+                            <thead class="text-xs uppercase table-header">
+                                <tr>
+                                    <th scope="col" class="py-3 px-4">Equity/Index</th>
+                                    <th scope="col" class="py-3 px-4 text-right">Price</th>
+                                    <th scope="col" class="py-3 px-4 text-right">Change</th>
+                                    <th scope="col" class="py-3 px-4 text-right">% Change</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="py-4 px-4 font-medium">S&P 500 Index</td>
+                                    <td class="py-4 px-4 text-right">4,120.75</td>
+                                    <td class="py-4 px-4 text-right text-green-positive">+15.20</td>
+                                    <td class="py-4 px-4 text-right text-green-positive">+0.37%</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-4 px-4 font-medium">Dow Jones Industrial Average</td>
+                                    <td class="py-4 px-4 text-right">33,850.10</td>
+                                    <td class="py-4 px-4 text-right text-red-negative">-55.60</td>
+                                    <td class="py-4 px-4 text-right text-red-negative">-0.16%</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-4 px-4 font-medium">NASDAQ Composite</td>
+                                    <td class="py-4 px-4 text-right">12,050.40</td>
+                                    <td class="py-4 px-4 text-right text-green-positive">+80.15</td>
+                                    <td class="py-4 px-4 text-right text-green-positive">+0.67%</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-4 px-4 font-medium">ExxonMobil (XOM)</td>
+                                    <td class="py-4 px-4 text-right">$115.30</td>
+                                    <td class="py-4 px-4 text-right text-green-positive">+0.85</td>
+                                    <td class="py-4 px-4 text-right text-green-positive">+0.74%</td>
+                                </tr>
+                                 <tr>
+                                    <td class="py-4 px-4 font-medium">Chevron (CVX)</td>
+                                    <td class="py-4 px-4 text-right">$160.45</td>
+                                    <td class="py-4 px-4 text-right text-red-negative">-0.20</td>
+                                    <td class="py-4 px-4 text-right text-red-negative">-0.12%</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-4 px-4 font-medium">NextEra Energy (NEE)</td>
+                                    <td class="py-4 px-4 text-right">$72.80</td>
+                                    <td class="py-4 px-4 text-right text-green-positive">+1.10</td>
+                                    <td class="py-4 px-4 text-right text-green-positive">+1.53%</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="treasuries-content" class="tab-content hidden">
+                        <table class="w-full text-left">
+                            <thead class="text-xs uppercase table-header">
+                                <tr>
+                                    <th scope="col" class="py-3 px-4">Treasury Yield</th>
+                                    <th scope="col" class="py-3 px-4 text-right">Rate</th>
+                                    <th scope="col" class="py-3 px-4 text-right">Change (bps)</th>
+                                    <th scope="col" class="py-3 px-4 text-right">% Change</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="py-4 px-4 font-medium">U.S. 2-Year Note</td>
+                                    <td class="py-4 px-4 text-right">4.05%</td>
+                                    <td class="py-4 px-4 text-right text-green-positive">+2.1</td>
+                                    <td class="py-4 px-4 text-right text-green-positive">+0.52%</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-4 px-4 font-medium">U.S. 5-Year Note</td>
+                                    <td class="py-4 px-4 text-right">3.60%</td>
+                                    <td class="py-4 px-4 text-right text-red-negative">-1.5</td>
+                                    <td class="py-4 px-4 text-right text-red-negative">-0.41%</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-4 px-4 font-medium">U.S. 10-Year Bond</td>
+                                    <td class="py-4 px-4 text-right">3.45%</td>
+                                    <td class="py-4 px-4 text-right text-green-positive">+0.8</td>
+                                    <td class="py-4 px-4 text-right text-green-positive">+0.23%</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-4 px-4 font-medium">U.S. 30-Year Bond</td>
+                                    <td class="py-4 px-4 text-right">3.70%</td>
+                                    <td class="py-4 px-4 text-right text-red-negative">-0.5</td>
+                                    <td class="py-4 px-4 text-right text-red-negative">-0.13%</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="energy-companies" class="mb-12">
+                <div class="glassmorphic-panel rounded-xl p-6 md:p-8">
+                    <h2 class="text-2xl font-semibold mb-6 section-heading">Top Energy Companies</h2>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 filter-container">
+                        <div>
+                            <label for="searchCompanyInput">Search Company</label>
+                            <input type="text" id="searchCompanyInput" placeholder="Name, Ticker, Sector, Country..." class="w-full filter-search-input">
+                        </div>
+                        <div>
+                            <label for="sectorFilter">Filter by Sector</label>
+                            <select id="sectorFilter" class="w-full filter-select">
+                                <option value="">All Sectors</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="countryFilter">Filter by Country</label>
+                            <select id="countryFilter" class="w-full filter-select">
+                                <option value="">All Countries</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto max-h-[70vh]">
+                        <table id="energyCompaniesTable" class="w-full text-left min-w-[1000px]">
+                            <thead class="text-xs uppercase table-header">
+                                <tr>
+                                    <th scope="col" class="py-3 px-4 sortable" data-sort="rank">Rank</th>
+                                    <th scope="col" class="py-3 px-4 sortable" data-sort="name">Company Name</th>
+                                    <th scope="col" class="py-3 px-4 sortable" data-sort="ticker">Ticker</th>
+                                    <th scope="col" class="py-3 px-4 sortable text-right" data-sort="marketCap">Market Cap (USD)</th>
+                                    <th scope="col" class="py-3 px-4 sortable text-right" data-sort="price">Price (USD)</th>
+                                    <th scope="col" class="py-3 px-4 sortable text-right" data-sort="change">Change</th>
+                                    <th scope="col" class="py-3 px-4 sortable text-right" data-sort="percentChange">% Change</th>
+                                    <th scope="col" class="py-3 px-4 sortable" data-sort="sector">Sector</th>
+                                    <th scope="col" class="py-3 px-4 sortable" data-sort="country">Country</th>
+                                </tr>
+                            </thead>
+                            <tbody id="energyCompaniesBody">
+                                </tbody>
+                        </table>
+                    </div>
+                     <div class="mt-4 text-sm text-gray-500">
+                        </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <p>&copy; <span id="current-year-markets"></span> Linq Energy Intelligence. All Rights Reserved.</p>
+        <nav class="text-xs space-x-3 mt-2">
+            <a href="#">Privacy Policy</a> |
+            <a href="#">Terms of Service</a> |
+            <a href="#">Contact Us</a>
+        </nav>
+    </footer>
+
+    <script>
+        // --- Function to Initialize and Run All Header Related Logic ---
+        // This function will be called AFTER header.html is fetched and injected.
+        function initializeHeaderAndAuth() {
+            const authLinkDesktopLogin = document.getElementById('authLinkDesktopLogin');
+            const profileAndMenuDesktop = document.getElementById('profileAndMenuDesktop');
+            const authLinkMobile = document.getElementById('authLinkMobile');
+            const logoutButtonMobile = document.getElementById('logoutButtonMobile');
+            const favoritesLinkMobile = document.getElementById('favoritesLinkMobile');
+            const linqAiLinkMobile = document.getElementById('linqAiLinkMobile'); 
+            const earningsLinkMobile = document.getElementById('earningsLinkMobile'); 
+            const desktopSlideOutMenu = document.getElementById('desktop-slideout-menu');
+            const menuOverlay = document.getElementById('menu-overlay'); // Ensure this ID exists in your header.html
+            const logoutButtonDesktopSlideout = document.getElementById('logoutButtonSlideout');
+            const desktopHamburgerButton = document.getElementById('desktop-hamburger-button');
+            const slideoutCloseButton = document.getElementById('slideout-close-button');
+            const mobileMenuButton = document.getElementById('mobile-menu-button');
+            const mobileMenu = document.getElementById('mobile-menu');
+
+            // Firebase configuration
+            const firebaseConfig = { // Use a consistent config name
+                apiKey: "AIzaSyD_FCx8sIkrCoQMoKm5xQIvlyAmlqptETk", // Store securely
+                authDomain: "linq-b27a8.firebaseapp.com",
+                projectId: "linq-b27a8",
+                storageBucket: "linq-b27a8.appspot.com",
+                messagingSenderId: "1067901051826",
+                appId: "1:1067901051826:web:44452d1339cdbe2af07aab"
+            };
+            if (!firebase.apps.length) { 
+                firebase.initializeApp(firebaseConfig);
+            }
+            const authInstance = firebase.auth();
+
+            authInstance.onAuthStateChanged(user => {
+                if (user) {
+                    if (authLinkDesktopLogin) authLinkDesktopLogin.classList.add('hidden');
+                    if (profileAndMenuDesktop) {
+                        profileAndMenuDesktop.classList.remove('hidden');
+                        profileAndMenuDesktop.classList.add('flex');
+                    }
+                    if (authLinkMobile) {
+                        authLinkMobile.textContent = "My Profile";
+                        authLinkMobile.href = "profile.html";
+                    }
+                    if (logoutButtonMobile) logoutButtonMobile.classList.remove('hidden');
+                    if (favoritesLinkMobile) favoritesLinkMobile.classList.remove('hidden');
+                    if (linqAiLinkMobile) linqAiLinkMobile.classList.remove('hidden');
+                    if (earningsLinkMobile) earningsLinkMobile.classList.remove('hidden');
+                } else {
+                    if (authLinkDesktopLogin) {
+                        authLinkDesktopLogin.classList.remove('hidden');
+                        authLinkDesktopLogin.classList.add('nav-link-button');
+                    }
+                    if (profileAndMenuDesktop) profileAndMenuDesktop.classList.add('hidden');
+                    if (authLinkMobile) {
+                        authLinkMobile.textContent = "Login";
+                        authLinkMobile.href = "login.html";
+                    }
+                    if (logoutButtonMobile) logoutButtonMobile.classList.add('hidden');
+                    if (favoritesLinkMobile) favoritesLinkMobile.classList.add('hidden');
+                    if (linqAiLinkMobile) linqAiLinkMobile.classList.add('hidden');
+                    if (earningsLinkMobile) earningsLinkMobile.classList.add('hidden');
+                    if (desktopSlideOutMenu && desktopSlideOutMenu.classList.contains('open')) {
+                        closeDesktopMenu();
+                    }
+                }
+                setActiveNavLink();
+            });
+
+            function handleLogout(e) {
+                e.preventDefault();
+                if (desktopSlideOutMenu && desktopSlideOutMenu.classList.contains('open')) closeDesktopMenu();
+                if (mobileMenu && !mobileMenu.classList.contains('hidden')) mobileMenu.classList.add('hidden');
+                authInstance.signOut().then(() => console.log("User signed out"))
+                              .catch(error => console.error("Sign out error", error));
+            }
+
+            if (logoutButtonDesktopSlideout) logoutButtonDesktopSlideout.addEventListener('click', handleLogout);
+            if (logoutButtonMobile) logoutButtonMobile.addEventListener('click', handleLogout);
+
+            function setActiveNavLink() {
+                const currentPath = window.location.pathname.split("/").pop() || "index.html";
+                const navLinks = document.querySelectorAll('nav.fixed a.nav-link, #mobile-menu a.nav-link');
+                navLinks.forEach(link => {
+                    link.classList.remove('active');
+                    const linkHref = link.getAttribute('href');
+                    const linkDataPage = link.dataset.page;
+                    if (linkHref === currentPath || ((currentPath === "index.html" || currentPath === "") && (linkHref === "index.html" || linkDataPage === "index" || linkDataPage === "index-mobile"))) {
+                        link.classList.add('active');
+                    }
+                     // Explicitly activate Markets.html link
+                    if (currentPath === "Markets.html" && linkHref === "Markets.html") {
+                         link.classList.add('active');
+                    }
+                });
+            }
+
+            if (mobileMenuButton && mobileMenu) {
+                mobileMenuButton.addEventListener('click', () => mobileMenu.classList.toggle('hidden'));
+            }
+
+            function openDesktopMenu() {
+                if (desktopSlideOutMenu) desktopSlideOutMenu.classList.add('open');
+                if (menuOverlay) menuOverlay.classList.add('active');
+                document.body.classList.add('overflow-hidden');
+            }
+            function closeDesktopMenu() {
+                if (desktopSlideOutMenu) desktopSlideOutMenu.classList.remove('open');
+                if (menuOverlay) menuOverlay.classList.remove('active');
+                document.body.classList.remove('overflow-hidden');
+            }
+            if (desktopHamburgerButton) {
+                desktopHamburgerButton.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    if (desktopSlideOutMenu && desktopSlideOutMenu.classList.contains('open')) closeDesktopMenu();
+                    else openDesktopMenu();
+                });
+            }
+            if (menuOverlay) menuOverlay.addEventListener('click', closeDesktopMenu);
+            if (slideoutCloseButton) slideoutCloseButton.addEventListener('click', closeDesktopMenu);
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape' && desktopSlideOutMenu && desktopSlideOutMenu.classList.contains('open')) closeDesktopMenu();
+            });
+
+            setActiveNavLink(); // Initial call
+        }
+
+        // Fetch and Inject Header, then Initialize Header Logic
+        fetch('header.html') // Ensure header.html is in the correct path
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok for header.html');
+                return response.text();
+            })
+            .then(data => {
+                const headerPlaceholder = document.getElementById('header-placeholder');
+                if (headerPlaceholder) {
+                    headerPlaceholder.innerHTML = data;
+                    initializeHeaderAndAuth(); // Initialize header JS AFTER it's loaded
+        
+                    // ✅ Set user avatar in header
+                    firebase.auth().onAuthStateChanged(user => {
+                        const avatarImg = document.getElementById('navProfilePic');
+                        if (avatarImg && user) {
+                            if (user.photoURL) {
+                                avatarImg.src = user.photoURL;
+                            } else if (user.displayName) {
+                                const initials = user.displayName.charAt(0).toUpperCase();
+                                avatarImg.src = `https://placehold.co/40x40/2C2F33/EAEAEA?text=${initials}`;
+                            }
+                        }
+                    });
+        
+                } else {
+                    console.error('Header placeholder element not found.');
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching header:', error);
+                const headerPlaceholder = document.getElementById('header-placeholder');
+                if (headerPlaceholder) {
+                    headerPlaceholder.innerHTML = "<p class='text-red-500 text-center py-3'>Error loading navigation.</p>";
+                }
+            });
+
+
+
+        // --- Markets Page Specific JavaScript ---
+        if(document.getElementById('current-year-markets')) {
+            document.getElementById('current-year-markets').textContent = new Date().getFullYear();
+        }
+
+        const tabButtons = document.querySelectorAll('.tab-button');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                tabButtons.forEach(btn => {
+                    btn.classList.remove('tab-active');
+                    btn.classList.add('tab-inactive');
+                });
+                tabContents.forEach(content => {
+                    content.classList.add('hidden');
+                });
+
+                button.classList.add('tab-active');
+                button.classList.remove('tab-inactive');
+                const targetTab = button.getAttribute('data-tab');
+                const targetElement = document.getElementById(`${targetTab}-content`);
+                if (targetElement) {
+                    targetElement.classList.remove('hidden');
+                }
+            });
+        });
+
+        let energyCompaniesData = [
+            { rank: 1, name: 'Saudi Aramco', ticker: '2222.SR', marketCap: 2080000000000, price: 30.50, change: 0.10, percentChange: 0.33, sector: 'Integrated Oil & Gas', country: 'Saudi Arabia' },
+            { rank: 2, name: 'ExxonMobil Corp.', ticker: 'XOM', marketCap: 475000000000, price: 118.75, change: -0.50, percentChange: -0.42, sector: 'Integrated Oil & Gas', country: 'USA' },
+            { rank: 3, name: 'PetroChina Co. Ltd.', ticker: 'PTR', marketCap: 190000000000, price: 60.20, change: 0.80, percentChange: 1.35, sector: 'Integrated Oil & Gas', country: 'China' },
+            { rank: 4, name: 'Shell PLC', ticker: 'SHEL', marketCap: 220000000000, price: 32.50, change: 0.15, percentChange: 0.46, sector: 'Integrated Oil & Gas', country: 'UK' },
+            { rank: 5, name: 'Chevron Corp.', ticker: 'CVX', marketCap: 300000000000, price: 160.10, change: -1.20, percentChange: -0.74, sector: 'Integrated Oil & Gas', country: 'USA' },
+            { rank: 6, name: 'TotalEnergies SE', ticker: 'TTE', marketCap: 165000000000, price: 65.80, change: 0.30, percentChange: 0.46, sector: 'Integrated Oil & Gas', country: 'France' },
+            { rank: 7, name: 'ConocoPhillips Co.', ticker: 'COP', marketCap: 140000000000, price: 125.50, change: 1.10, percentChange: 0.88, sector: 'Exploration & Production', country: 'USA' },
+            { rank: 8, name: 'BP PLC', ticker: 'BP', marketCap: 105000000000, price: 5.80, change: -0.05, percentChange: -0.85, sector: 'Integrated Oil & Gas', country: 'UK' },
+            { rank: 9, name: 'Equinor ASA', ticker: 'EQNR', marketCap: 95000000000, price: 30.20, change: 0.25, percentChange: 0.83, sector: 'Integrated Oil & Gas', country: 'Norway' },
+            { rank: 10, name: 'Enbridge Inc.', ticker: 'ENB', marketCap: 85000000000, price: 40.50, change: -0.10, percentChange: -0.25, sector: 'Midstream', country: 'Canada' },
+            { rank: 11, name: 'EOG Resources Inc.', ticker: 'EOG', marketCap: 75000000000, price: 130.80, change: 1.50, percentChange: 1.16, sector: 'Exploration & Production', country: 'USA' },
+            { rank: 12, name: 'Schlumberger Ltd.', ticker: 'SLB', marketCap: 80000000000, price: 55.20, change: 0.70, percentChange: 1.28, sector: 'Oil & Gas Services', country: 'USA' }, 
+            { rank: 13, name: 'NextEra Energy Inc.', ticker: 'NEE', marketCap: 150000000000, price: 75.60, change: -0.40, percentChange: -0.53, sector: 'Utilities - Renewable', country: 'USA' },
+            { rank: 14, name: 'Duke Energy Corp.', ticker: 'DUK', marketCap: 80000000000, price: 102.10, change: 0.20, percentChange: 0.20, sector: 'Utilities - Diversified', country: 'USA' },
+            { rank: 15, name: 'Southern Company', ticker: 'SO', marketCap: 82000000000, price: 78.30, change: 0.10, percentChange: 0.13, sector: 'Utilities - Diversified', country: 'USA' },
+        ];
+        
+        const generatedCompanies = [];
+        const baseCompanyNames = ['Apex', 'Global', 'Terra', 'Sunbeam', 'HydroVolt', 'GeoSource', 'Quantum', 'Nova', 'Strata', 'Peak', 'Rigstar', 'Pipeline', 'Horizon', 'Catalyst', 'Momentum'];
+        const nameSuffixes = ['Energy', 'Oil Corp', 'Power', 'Renewables', 'Solutions', 'International', 'Fuels Ltd.', 'Gas Co.', 'Drillers Inc.', 'Petroleum Group', 'Operations', 'Dynamics Corp.', 'Resources', 'Exploration'];
+        const usSectors = ['Exploration & Production', 'Midstream', 'Oil & Gas Services', 'Utilities - Renewable', 'Utilities - Diversified', 'Refining & Marketing', 'Integrated Oil & Gas'];
+        const globalSectors = [...usSectors, 'Coal Operations', 'Energy Trading']; 
+        
+        const nonUSCountries = ['Canada', 'UK', 'France', 'Germany', 'Norway', 'China', 'Brazil', 'Australia', 'India', 'Russia', 'Mexico', 'UAE', 'Qatar', 'Netherlands'];
+
+        for (let i = 0; i < 62; i++) {
+            const baseName = baseCompanyNames[Math.floor(Math.random() * baseCompanyNames.length)];
+            const suffix = nameSuffixes[Math.floor(Math.random() * nameSuffixes.length)];
+            generatedCompanies.push({
+                rank: 0, 
+                name: `${baseName} ${suffix} USA`.replace(/\s+/g, ' '),
+                ticker: String.fromCharCode(65 + Math.floor(Math.random() * 26)) + String.fromCharCode(65 + Math.floor(Math.random() * 26)) + String.fromCharCode(65 + Math.floor(Math.random() * 26)) + (Math.random() > 0.2 ? String.fromCharCode(65 + Math.floor(Math.random() * 26)) : ''),
+                marketCap: Math.floor(Math.random() * 350000000000) + 50000000000, 
+                price: parseFloat((Math.random() * 250 + 10).toFixed(2)),
+                change: parseFloat((Math.random() * 8 - 4).toFixed(2)),
+                percentChange: parseFloat((Math.random() * 6 - 3).toFixed(2)),
+                sector: usSectors[Math.floor(Math.random() * usSectors.length)],
+                country: 'USA'
+            });
+        }
+
+        for (let i = 0; i < 23; i++) {
+            const baseName = baseCompanyNames[Math.floor(Math.random() * baseCompanyNames.length)];
+            const suffix = nameSuffixes[Math.floor(Math.random() * nameSuffixes.length)];
+            const country = nonUSCountries[Math.floor(Math.random() * nonUSCountries.length)];
+            generatedCompanies.push({
+                rank: 0, 
+                name: `${baseName} ${suffix} ${country}`.replace(/\s+/g, ' '),
+                ticker: String.fromCharCode(65 + Math.floor(Math.random() * 26)) + String.fromCharCode(65 + Math.floor(Math.random() * 26)) + String.fromCharCode(65 + Math.floor(Math.random() * 26)),
+                marketCap: Math.floor(Math.random() * 250000000000) + 40000000000, 
+                price: parseFloat((Math.random() * 200 + 5).toFixed(2)),
+                change: parseFloat((Math.random() * 7 - 3.5).toFixed(2)),
+                percentChange: parseFloat((Math.random() * 5 - 2.5).toFixed(2)),
+                sector: globalSectors[Math.floor(Math.random() * globalSectors.length)],
+                country: country
+            });
+        }
+
+        energyCompaniesData = [...energyCompaniesData, ...generatedCompanies];
+        energyCompaniesData.sort((a, b) => b.marketCap - a.marketCap); 
+        energyCompaniesData.forEach((company, index) => {
+            company.rank = index + 1; 
+        });
+
+        const sectorFilter = document.getElementById('sectorFilter');
+        const countryFilter = document.getElementById('countryFilter');
+        const allSectors = [...new Set(energyCompaniesData.map(company => company.sector))].sort();
+        const allCountries = [...new Set(energyCompaniesData.map(company => company.country))].sort();
+
+        if (sectorFilter) {
+            allSectors.forEach(sector => {
+                const option = document.createElement('option');
+                option.value = sector;
+                option.textContent = sector;
+                sectorFilter.appendChild(option);
+            });
+        }
+        if (countryFilter) {
+            allCountries.forEach(country => {
+                const option = document.createElement('option');
+                option.value = country;
+                option.textContent = country;
+                countryFilter.appendChild(option);
+            });
+        }
+        
+        let currentSortColumn = 'rank'; 
+        let currentSortOrder = 'asc';
+        const searchCompanyInput = document.getElementById('searchCompanyInput');
+
+        function applyFiltersAndSearch() {
+            const searchTerm = searchCompanyInput ? searchCompanyInput.value.toLowerCase() : "";
+            const selectedSector = sectorFilter ? sectorFilter.value : "";
+            const selectedCountry = countryFilter ? countryFilter.value : "";
+
+            let filteredData = energyCompaniesData.filter(company => {
+                const matchesSearch = searchTerm === '' ||
+                                      (company.name && company.name.toLowerCase().includes(searchTerm)) ||
+                                      (company.ticker && company.ticker.toLowerCase().includes(searchTerm)) ||
+                                      (company.sector && company.sector.toLowerCase().includes(searchTerm)) ||
+                                      (company.country && company.country.toLowerCase().includes(searchTerm));
+                const matchesSector = selectedSector === '' || company.sector === selectedSector;
+                const matchesCountry = selectedCountry === '' || company.country === selectedCountry;
+                return matchesSearch && matchesSector && matchesCountry;
+            });
+            sortAndRenderCompanies(filteredData);
+        }
+        
+        function sortAndRenderCompanies(dataToRender) {
+            dataToRender.sort((a, b) => {
+                let valA = a[currentSortColumn];
+                let valB = b[currentSortColumn];
+                if (typeof valA === 'string') {
+                    valA = valA.toLowerCase();
+                    valB = valB.toLowerCase();
+                } else if (typeof valA === 'number' && typeof valB === 'number') {
+                    // Numerical sort
+                } else { 
+                    valA = String(valA).toLowerCase();
+                    valB = String(valB).toLowerCase();
+                }
+                
+                if (valA < valB) return currentSortOrder === 'asc' ? -1 : 1;
+                if (valA > valB) return currentSortOrder === 'asc' ? 1 : -1;
+                return 0;
+            });
+            renderEnergyCompaniesTable(dataToRender);
+            updateSortIcons();
+        }
+
+        function renderEnergyCompaniesTable(data) {
+            const tableBody = document.getElementById('energyCompaniesBody');
+            if (!tableBody) return;
+            tableBody.innerHTML = ''; 
+            data.forEach(company => {
+                const row = tableBody.insertRow();
+                
+                row.insertCell().textContent = company.rank;
+                const nameCell = row.insertCell();
+                nameCell.textContent = company.name;
+                nameCell.classList.add('font-medium'); 
+
+                row.insertCell().textContent = company.ticker;
+                
+                const marketCapCell = row.insertCell();
+                marketCapCell.textContent = `$${(company.marketCap / 1000000000).toFixed(2)}B`;
+                marketCapCell.className = 'text-right';
+
+                const priceCell = row.insertCell();
+                priceCell.textContent = `$${company.price.toFixed(2)}`;
+                priceCell.className = 'text-right';
+
+                const changeCell = row.insertCell();
+                changeCell.textContent = company.change.toFixed(2);
+                changeCell.className = `text-right ${company.change >= 0 ? 'text-green-positive' : 'text-red-negative'}`; 
+                
+                const percentChangeCell = row.insertCell();
+                percentChangeCell.textContent = `${company.percentChange.toFixed(2)}%`;
+                percentChangeCell.className = `text-right ${company.percentChange >= 0 ? 'text-green-positive' : 'text-red-negative'}`;
+
+                row.insertCell().textContent = company.sector;
+                row.insertCell().textContent = company.country;
+
+                Array.from(row.cells).forEach(cell => cell.classList.add('py-3', 'px-4', 'text-sm'));
+            });
+        }
+        
+        function updateSortIcons() {
+            document.querySelectorAll('#energyCompaniesTable th.sortable').forEach(th => {
+                th.classList.remove('sort-asc', 'sort-desc');
+                if (th.dataset.sort === currentSortColumn) {
+                    th.classList.add(currentSortOrder === 'asc' ? 'sort-asc' : 'sort-desc');
+                }
+            });
+        }
+
+        document.querySelectorAll('#energyCompaniesTable th.sortable').forEach(headerCell => {
+            headerCell.addEventListener('click', () => {
+                const sortColumn = headerCell.dataset.sort;
+                if (currentSortColumn === sortColumn) {
+                    currentSortOrder = currentSortOrder === 'asc' ? 'desc' : 'asc';
+                } else {
+                    currentSortColumn = sortColumn;
+                    currentSortOrder = 'asc';
+                }
+                applyFiltersAndSearch(); 
+            });
+        });
+
+        if (searchCompanyInput) searchCompanyInput.addEventListener('input', applyFiltersAndSearch);
+        if (sectorFilter) sectorFilter.addEventListener('change', applyFiltersAndSearch);
+        if (countryFilter) countryFilter.addEventListener('change', applyFiltersAndSearch);
+        
+        // Initial render
+        applyFiltersAndSearch(); // This will also sort and render
+
+    </script>
+</body>
+</html>

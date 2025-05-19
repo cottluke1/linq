@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linq - Account</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
+    <style>
+        /* --- Enhanced Color Scheme & Variables (from original profile.html) --- */
+        :root {
+            --primary-bg: #121212;
+            --secondary-bg: #1E1E1E;
+            --tertiary-bg: #2A2A2A;
+            --hover-bg: #333333;
+            --text-primary: #F5F5F5;
+            --text-secondary: #A0A0A0;
+            --text-placeholder: #666666;
+            --accent-blue: #007AFF;
+            --accent-blue-darker: #0059B3;
+            --accent-blue-hover: #0062CC;
+            --border-color: #383838;
+            --border-color-light: #4D4D4D;
+            --success-green: #34C759;
+            --error-red: #FF3B30;
+            --font-family: 'Roboto', sans-serif;
+            --shadow-sm: 0 2px 4px rgba(0,0,0,0.2);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.3);
+            --shadow-lg: 0 8px 24px rgba(0,0,0,0.4);
+            --border-radius-sm: 4px;
+            --border-radius-md: 8px;
+            --border-radius-lg: 12px;
+        }
+
+        /* --- Global Styles (from original profile.html) --- */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: var(--font-family);
+            background-color: var(--primary-bg);
+            color: var(--text-primary);
+            line-height: 1.65;
+            font-size: 16px;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        body.overflow-hidden { overflow: hidden; }
+
+        .container {
+            width: 92%;
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        h1, h2, h3, h4, h5, h6 { color: var(--text-primary); margin-bottom: 0.75em; font-weight: 500; }
+        h1 { font-size: 2.4em; letter-spacing: -0.5px; }
+        h2 { font-size: 1.9em; }
+        h3 { font-size: 1.5em; }
+        p { margin-bottom: 1.2em; color: var(--text-secondary); }
+        a { color: var(--accent-blue); text-decoration: none; transition: color 0.2s ease-in-out; }
+        a:hover { color: var(--accent-blue-darker); }
+        .link { font-weight: 500; }
+
+        /* --- Styles for the dynamically loaded header.html --- */
+        nav.fixed {
+            background-color: rgba(10, 10, 10, 0.85) !important;
+            backdrop-filter: blur(10px) saturate(150%) !important;
+            -webkit-backdrop-filter: blur(10px) saturate(150%) !important;
+            border-bottom: 1px solid #222222 !important;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            z-index: 1000 !important;
+            padding: 0.75rem 0 !important;
+        }
+        nav.fixed .container {
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            width: 100% !important;
+            max-width: 1280px !important;
+            margin: 0 auto !important;
+            padding: 0 1rem !important;
+        }
+        @media (min-width: 640px) { nav.fixed .container { padding: 0 1.5rem !important; } }
+        @media (min-width: 1024px) { nav.fixed .container { padding: 0 2rem !important; } }
+
+        .nav-link {
+            transition: color 0.2s ease, opacity 0.2s ease, background-color 0.2s ease;
+            font-weight: 500; color: #B0B0B0; opacity: 0.8;
+            padding: 0.5rem 0.75rem; border-radius: 0.375rem; font-size: 0.875rem;
+        }
+        .nav-link:hover { color: #FFFFFF; opacity: 1; background-color: rgba(255,255,255,0.05); }
+        .nav-link.active { color: #FFFFFF; opacity: 1; background-color: transparent; }
+        #authLinkDesktopLogin.nav-link-button {
+            background-color: #00BFFF; color: #FFFFFF !important; opacity: 1 !important; padding: 0.5rem 1rem;
+        }
+        #authLinkDesktopLogin.nav-link-button:hover { background-color: #00A9E0; opacity: 1; }
+        .profile-icon-placeholder {
+            width: 2.25rem; height: 2.25rem; background-color: #333; border-radius: 50%;
+            display: inline-flex; align-items: center; justify-content: center;
+            cursor: pointer; border: 2px solid #4A4A4A;
+        }
+        .profile-icon-placeholder svg { width: 1.25rem; height: 1.25rem; color: #B0B0B0; }
+        .profile-icon-placeholder:hover { border-color: #00BFFF; }
+        .desktop-hamburger-icon { cursor: pointer; padding: 0.375rem; color: #B0B0B0; border-radius: 0.25rem;}
+        .desktop-hamburger-icon:hover { color: #FFFFFF; background-color: rgba(255,255,255,0.1); }
+        .desktop-hamburger-icon svg { width: 1.5rem; height: 1.5rem; }
+        .slide-out-panel {
+            display: flex; flex-direction: column; position: fixed; top: 0; right: 0;
+            width: 320px; height: 100vh; background-color: #18181B;
+            box-shadow: -10px 0 30px rgba(0,0,0,0.4); z-index: 1001;
+            transform: translateX(100%); transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            padding: 1.5rem; overflow-y: auto; border-left: 1px solid #3F3F46;
+        }
+        .slide-out-panel.open { transform: translateX(0); }
+        .slide-out-panel-header {
+            display: flex; justify-content: flex-end; align-items: center;
+            padding-bottom: 1.25rem; margin-bottom: 1.25rem; border-bottom: 1px solid #3F3F46;
+        }
+        .slide-out-panel-close-btn {
+            background: none; border: none; color: #A0A0A0; font-size: 1.875rem;
+            cursor: pointer; padding: 0.25rem; line-height: 1;
+            transition: color 0.2s ease, transform 0.2s ease;
+        }
+        .slide-out-panel-close-btn:hover { color: #FFFFFF; transform: rotate(90deg) scale(1.1); }
+        .slide-out-panel-nav { flex-grow: 1; display: flex; flex-direction: column; }
+        .slide-out-panel a {
+            color: #D4D4D8; padding: 1rem 1.25rem; text-decoration: none; display: block;
+            font-size: 0.95rem; font-weight: 500;
+            transition: background-color 0.2s ease, color 0.2s ease, border-left-color 0.2s ease;
+            border-left: 4px solid transparent; margin: 0.375rem 0; border-radius: 0.375rem;
+        }
+        .slide-out-panel a:hover { background-color: #27272A; color: #FFFFFF; border-left-color: #00BFFF; }
+        .slide-out-panel #logoutButtonSlideout {
+            color: #F87171 !important; margin-top: auto; padding-top: 1rem; border-top: 1px solid #3F3F46;
+        }
+        .slide-out-panel #logoutButtonSlideout:hover {
+            background-color: rgba(248, 113, 113, 0.1); color: #FECACA !important; border-left-color: #F87171;
+        }
+        #menu-overlay {
+            display: none; position: fixed; inset: 0;
+            background-color: rgba(0, 0, 0, 0.65); z-index: 1000;
+            opacity: 0; transition: opacity 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+        #menu-overlay.active { display: block; opacity: 1; }
+
+        /* --- Main Content Area --- */
+        main {
+            padding-top: 70px; /* Default, will be adjusted by JS after header loads */
+            flex-grow: 1;
+        }
+        main .container {
+            display: flex;
+            padding-top: 40px;
+            padding-bottom: 40px;
+            gap: 40px;
+        }
+
+        /* --- Sidebar --- */
+        .sidebar {
+            flex: 0 0 260px;
+            background-color: var(--secondary-bg);
+            padding: 30px;
+            border-radius: var(--border-radius-lg);
+            height: fit-content;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-md);
+        }
+        .sidebar h2 { font-size: 1.6em; margin-bottom: 25px; border-bottom: 1px solid var(--border-color-light); padding-bottom: 15px; }
+        .sidebar ul { list-style: none; }
+        .sidebar ul li a {
+            display: block; padding: 14px 18px; color: var(--text-secondary);
+            border-radius: var(--border-radius-md); margin-bottom: 8px;
+            font-weight: 500;
+            transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out, transform 0.1s ease;
+        }
+        .sidebar ul li a:hover { background-color: var(--hover-bg); color: var(--text-primary); transform: translateX(3px); }
+        .sidebar ul li a.active-link {
+            background-color: var(--accent-blue); color: white; font-weight: 700;
+            box-shadow: 0 2px 6px rgba(0, 123, 255, 0.3);
+        }
+        .sidebar ul li a.active-link:hover { background-color: var(--accent-blue-darker); transform: translateX(0); }
+        .sidebar ul li a.logout-link { color: var(--error-red); }
+        .sidebar ul li a.logout-link:hover { background-color: rgba(255, 59, 48, 0.1); color: var(--error-red); }
+
+        /* --- Content Area --- */
+        .content { flex: 1; }
+        .content-section { display: none; animation: fadeIn 0.4s ease-in-out; }
+        .content-section.active-section { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        .card {
+            background-color: var(--secondary-bg); border: 1px solid var(--border-color);
+            border-radius: var(--border-radius-lg); margin-bottom: 35px;
+            overflow: hidden; box-shadow: var(--shadow-md); transition: box-shadow 0.3s ease;
+        }
+        .card:hover { box-shadow: var(--shadow-lg); }
+        .card-header {
+            padding: 25px 30px; border-bottom: 1px solid var(--border-color-light);
+            display: flex; justify-content: space-between; align-items: center;
+            background-color: var(--tertiary-bg);
+        }
+        .card-header h3 { margin-bottom: 0; font-size: 1.3em; }
+        .card-body { padding: 30px; }
+        .profile-info-container { display: flex; align-items: flex-start; gap: 30px; }
+        .profile-info { flex-grow: 1; }
+        .info-item { margin-bottom: 18px; }
+        .info-item label {
+            display: block; color: var(--text-secondary); font-size: 0.9em;
+            margin-bottom: 6px; font-weight: 500;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .info-item p { color: var(--text-primary); font-size: 1.05em; margin: 0; }
+        .avatar-section { text-align: center; flex-shrink: 0; }
+        .avatar {
+            width: 120px; height: 120px; border-radius: 50%;
+            border: 4px solid var(--border-color); margin-bottom: 15px;
+            object-fit: cover; box-shadow: var(--shadow-sm);
+        }
+
+        /* --- Forms --- */
+        .form-group { margin-bottom: 25px; }
+        .form-group label { display: block; color: var(--text-secondary); margin-bottom: 10px; font-weight: 500; font-size: 0.95em; }
+        .form-group input[type="text"], .form-group input[type="email"], .form-group input[type="password"], .form-group textarea {
+            width: 100%; padding: 14px 18px; background-color: var(--primary-bg);
+            border: 1px solid var(--border-color); border-radius: var(--border-radius-md);
+            color: var(--text-primary); font-size: 1em;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        .form-group input::placeholder { color: var(--text-placeholder); }
+        .form-group input[type="text"]:focus, .form-group input[type="email"]:focus, .form-group input[type="password"]:focus, .form-group textarea:focus {
+            outline: none; border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.2);
+        }
+        .form-group input[type="checkbox"] { margin-right: 12px; vertical-align: middle; accent-color: var(--accent-blue); width: 18px; height: 18px; cursor: pointer; }
+        .form-group input[type="checkbox"] + label { color: var(--text-secondary); font-weight: normal; cursor: pointer; user-select: none; }
+
+        /* --- Buttons --- */
+        .btn {
+            padding: 12px 24px; border: none; border-radius: var(--border-radius-md);
+            cursor: pointer; font-size: 1em; font-weight: 600;
+            transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+            text-align: center; letter-spacing: 0.3px;
+        }
+        .btn:active { transform: translateY(1px); }
+        .btn-primary {
+            background-image: linear-gradient(to right, var(--accent-blue) 0%, var(--accent-blue-darker) 100%);
+            color: #fff; box-shadow: 0 2px 6px rgba(0, 123, 255, 0.3);
+        }
+        .btn-primary:hover { background-image: linear-gradient(to right, var(--accent-blue-hover) 0%, var(--accent-blue) 100%); box-shadow: 0 4px 10px rgba(0, 123, 255, 0.4); }
+        .btn-secondary { background-color: var(--tertiary-bg); color: var(--text-primary); border: 1px solid var(--border-color-light); }
+        .btn-secondary:hover { background-color: var(--hover-bg); border-color: var(--border-color); }
+        .btn-outline { background-color: transparent; color: var(--accent-blue); border: 2px solid var(--accent-blue); }
+        .btn-outline:hover { background-color: var(--accent-blue); color: #fff; }
+
+        /* --- Other specific styles --- */
+        .subscription-info p { margin-bottom: 10px; color: var(--text-primary); font-size: 1.05em; }
+        .subscription-info p strong { color: var(--text-secondary); min-width: 120px; display: inline-block; font-weight: 500; }
+        .status-active { color: var(--success-green); font-weight: bold; }
+        .status-inactive { color: var(--error-red); font-weight: bold; }
+        .activity-list { list-style: none; padding-left: 0; }
+        .activity-list li { padding: 12px 0; border-bottom: 1px solid var(--border-color-light); color: var(--text-secondary); font-size: 0.95em; }
+        .activity-list li:last-child { border-bottom: none; }
+        .faq-list { list-style: disc; padding-left: 20px; margin-bottom: 25px; }
+        .faq-list li { margin-bottom: 12px; }
+        .faq-list li a { color: var(--text-secondary); }
+        .faq-list li a:hover { color: var(--accent-blue); text-decoration: underline; }
+
+        /* --- Footer --- */
+        footer {
+            background-color: var(--tertiary-bg); color: var(--text-secondary);
+            padding: 30px 0; text-align: center;
+            border-top: 1px solid var(--border-color);
+            margin-top: auto;
+        }
+        footer .container { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+        footer p { margin: 0; }
+        .footer-links a { color: var(--text-secondary); margin-left: 20px; font-size: 0.9em; }
+        .footer-links a:hover { color: var(--accent-blue); }
+
+        /* --- Responsive Design --- */
+        @media (max-width: 992px) {
+            main .container { flex-direction: column; }
+            .sidebar { flex: 0 0 auto; width: 100%; margin-bottom: 30px; height: auto; }
+            .profile-info-container { flex-direction: column; align-items: center; }
+            .avatar-section { margin-left: 0; margin-top: 25px; }
+        }
+        @media (max-width: 768px) {
+            h1 { font-size: 2em; } h2 { font-size: 1.6em; } h3 { font-size: 1.3em; }
+            .card-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+            .card-header button { margin-top: 10px; width: 100%; } /* Ensure button takes width */
+            .btn { padding: 12px 18px; font-size: 0.95em; }
+            footer .container { flex-direction: column; gap: 15px; }
+            .footer-links { margin-top: 10px; }
+            .footer-links a { margin: 0 10px; }
+        }
+         @media (max-width: 480px) {
+            .container { width: 95%; padding: 0 15px; }
+            h1 { font-size: 1.8em; } h2 { font-size: 1.4em; } h3 { font-size: 1.2em; }
+            .card-body, .card-header, .sidebar { padding: 20px; }
+            .btn { width: 100%; margin-bottom: 10px; }
+            .btn:last-child { margin-bottom: 0; }
+            .profile-info-container { gap: 20px; }
+            .avatar { width: 100px; height: 100px; }
+            /* Ensure buttons in card headers stack correctly and don't cause overflow */
+            .card-header button.btn-outline, .card-header button.btn-secondary { width: auto; min-width: 150px;} /* Give specific buttons auto width if they are not meant to be full width */
+             @media (max-width: 768px) { /* Re-apply general rule for smaller screens if needed */
+                .card-header button { width: 100%; }
+            }
+        }
+
+        /* Toast Notification Style */
+        #message-toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 1rem 1.5rem;
+            border-radius: var(--border-radius-md);
+            box-shadow: var(--shadow-lg);
+            z-index: 10000;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+            transform: translateY(20px);
+            font-size: 0.95em;
+            font-weight: 500;
+        }
+        #message-toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+    <div id="header-placeholder"></div>
+
+    <main>
+        <div class="container">
+            <aside class="sidebar">
+                <h2>Account Settings</h2>
+                <ul>
+                    <li><a href="#profile" class="active-link">Profile</a></li>
+                    <li><a href="#subscription">Subscription</a></li>
+                    <li><a href="#security">Security</a></li>
+                    <li><a href="#activity">Activity</a></li>
+                    <li><a href="#notifications">Notifications</a></li>
+                    <li><a href="#help">Help & Support</a></li>
+                    <li><a href="#" id="sidebar-logout-link" class="logout-link">Logout</a></li>
+                </ul>
+            </aside>
+
+            <section class="content">
+                <div id="profile" class="content-section active-section">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Personal Information</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="profile-info-container">
+                                <div class="profile-info">
+                                    <div class="info-item">
+                                        <label>Full Name</label>
+                                        <p id="profileFullName">Alex Johnson</p>
+                                    </div>
+                                    <div class="info-item">
+                                        <label>Email Address</label>
+                                        <p id="profileEmail">alex.johnson@example.com</p>
+                                    </div>
+                                    <div class="info-item">
+                                        <label>Username</label>
+                                        <p id="profileUsername">alexj</p>
+                                    </div>
+                                    <div class="info-item">
+                                        <label>Joined</label>
+                                        <p id="profileJoinedDate">May 10, 2024</p>
+                                    </div>
+                                </div>
+                                <div class="avatar-section">
+                                    <img src="https://placehold.co/120x120/1E1E1E/F5F5F5?text=User&font=roboto" alt="User Avatar" class="avatar" id="profileAvatar" onerror="this.onerror=null; this.src='https://placehold.co/120x120/2C2F33/EAEAEA?text=Error&font=roboto';">
+                                    <input type="file" id="avatarInput" accept="image/*" style="display: none;">
+                                    <button class="btn btn-secondary" id="changeAvatarButton">Change Avatar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="subscription" class="content-section">
+                    <h1>Subscription Details</h1>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Current Plan</h3>
+                            <button class="btn btn-outline" id="changePlanButton">Change Plan</button>
+                        </div>
+                        <div class="card-body">
+                            <div class="subscription-info">
+                                <p><strong>Plan:</strong> Premium Annual</p>
+                                <p><strong>Status:</strong> <span id="subscriptionStatus" class="status-active">Active</span></p>
+                                <p><strong>Renews on:</strong> <span id="subscriptionRenewsOn">May 10, 2026</span></p>
+                                <p><strong>Price:</strong> <span id="subscriptionPrice">$99.00/year</span></p>
+                            </div>
+                            <a href="#" class="link" id="viewBillingHistoryLink">View billing history</a>
+                        </div>
+                    </div>
+                     <div class="card">
+                        <div class="card-header">
+                            <h3>Payment Method</h3>
+                        </div>
+                        <div class="card-body">
+                            <p id="paymentMethod">Visa **** **** **** 1234</p>
+                            <p id="paymentExpires">Expires: 12/2027</p>
+                            <button class="btn btn-secondary" id="updatePaymentButton">Update Payment</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="security" class="content-section">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Change Password</h3>
+                        </div>
+                        <div class="card-body">
+                            <form id="changePasswordForm">
+                                <div class="form-group">
+                                    <label for="current-password">Current Password:</label>
+                                    <input type="password" id="current-password" name="current-password" placeholder="Enter current password" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="new-password">New Password:</label>
+                                    <input type="password" id="new-password" name="new-password" placeholder="Enter new password (min. 6 characters)" required minlength="6">
+                                </div>
+                                <div class="form-group">
+                                    <label for="confirm-password">Confirm New Password:</label>
+                                    <input type="password" id="confirm-password" name="confirm-password" placeholder="Confirm new password" required minlength="6">
+                                </div>
+                                <button type="submit" class="btn btn-primary">Update Password</button>
+                            </form>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Two-Factor Authentication (2FA)</h3>
+                        </div>
+                        <div class="card-body">
+                            <p>Status: <span id="tfaStatus" class="status-active">Enabled</span></p>
+                            <button class="btn btn-secondary" id="manage2FAButton">Manage 2FA Settings</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="activity" class="content-section">
+                    <h1>Recent Activity</h1>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Login History</h3>
+                        </div>
+                        <div class="card-body">
+                            <ul class="activity-list" id="activityList">
+                                <li>Logged in from IP: 192.168.1.10 (Chrome on Windows) - May 10, 2025, 10:00 AM</li>
+                                <li>Password changed - May 9, 2025, 03:30 PM</li>
+                                <li>Logged in from IP: 10.0.0.5 (Safari on macOS) - May 8, 2025, 09:15 AM</li>
+                            </ul>
+                            <a href="#" class="link" id="viewAllActivityLink">View all activity</a>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="notifications" class="content-section">
+                    <h1>Notification Settings</h1>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Email Notifications</h3>
+                        </div>
+                        <div class="card-body">
+                            <form id="notificationSettingsForm">
+                                <div class="form-group">
+                                    <input type="checkbox" id="product-updates-settings" name="product-updates-settings" checked> <label for="product-updates-settings">Product Updates & Announcements</label>
+                                </div>
+                                <div class="form-group">
+                                    <input type="checkbox" id="security-alerts-settings" name="security-alerts-settings" checked> <label for="security-alerts-settings">Security Alerts</label>
+                                </div>
+                                <div class="form-group">
+                                    <input type="checkbox" id="community-digest-settings" name="community-digest-settings"> <label for="community-digest-settings">Community Digest</label>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Save Notification Settings</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="help" class="content-section">
+                    <h1>Help & Support</h1>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Frequently Asked Questions</h3>
+                        </div>
+                        <div class="card-body">
+                            <ul class="faq-list">
+                                <li><a href="#" class="link faq-link">How do I reset my password?</a></li>
+                                <li><a href="#" class="link faq-link">How can I update my billing information?</a></li>
+                                <li><a href="#" class="link faq-link">Understanding your subscription plans.</a></li>
+                            </ul>
+                            <button class="btn btn-outline" id="visitHelpCenterButton">Visit Help Center</button>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Contact Support</h3>
+                        </div>
+                        <div class="card-body">
+                            <p>If you can't find an answer in our Help Center, please feel free to contact us.</p>
+                            <button class="btn btn-primary" id="contactSupportButton">Contact Support</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Linq AI. All rights reserved.</p>
+            <div class="footer-links">
+                <a href="#">Terms of Service</a>
+                <a href="#">Privacy Policy</a>
+            </div>
+        </div>
+    </footer>
+
+    <div id="message-toast" class="hidden">
+        <p id="message-toast-text"></p>
+    </div>
+
+    <script>
+        // --- Toast Notification Function ---
+        function showToast(message, type = 'info') { // type can be 'info', 'success', 'error'
+            const toast = document.getElementById('message-toast');
+            const toastText = document.getElementById('message-toast-text');
+            if (!toast || !toastText) {
+                console.warn("Toast elements not found. Using alert as fallback.");
+                alert(message); // Fallback
+                return;
+            }
+
+            toastText.textContent = message;
+            toast.classList.remove('hidden', 'opacity-0', 'transform', 'translate-y-5'); // Clean up classes
+            toast.classList.add('show'); // Add 'show' for visibility and animation start
+
+            // Set background color based on type
+            let bgColor = 'var(--tertiary-bg)';
+            let textColor = 'var(--text-primary)';
+            if (type === 'success') {
+                bgColor = 'var(--success-green)';
+                textColor = 'white';
+            } else if (type === 'error') {
+                bgColor = 'var(--error-red)';
+                textColor = 'white';
+            }
+            toast.style.backgroundColor = bgColor;
+            toast.style.color = textColor;
+
+            // Hide after 3 seconds
+            setTimeout(() => {
+                toast.classList.remove('show');
+                // Add classes for fade out if desired or simply hide
+                setTimeout(() => toast.classList.add('hidden'), 300); // Ensure it's hidden after transition
+            }, 3000);
+        }
+
+
+        // --- Function to Initialize and Run All Header Related Logic ---
+        function initializeHeaderAndAuth() {
+            const authLinkDesktopLogin = document.getElementById('authLinkDesktopLogin');
+            const profileAndMenuDesktop = document.getElementById('profileAndMenuDesktop');
+            const authLinkMobile = document.getElementById('authLinkMobile');
+            const logoutButtonMobile = document.getElementById('logoutButtonMobile');
+            const favoritesLinkMobile = document.getElementById('favoritesLinkMobile');
+            const linqAiLinkMobile = document.getElementById('linqAiLinkMobile');
+            const earningsLinkMobile = document.getElementById('earningsLinkMobile');
+            const desktopSlideOutMenu = document.getElementById('desktop-slideout-menu');
+            const menuOverlay = document.getElementById('menu-overlay');
+            const logoutButtonDesktopSlideout = document.getElementById('logoutButtonSlideout');
+            const desktopHamburgerButton = document.getElementById('desktop-hamburger-button');
+            const slideoutCloseButton = document.getElementById('slideout-close-button');
+            const mobileMenuButton = document.getElementById('mobile-menu-button');
+            const mobileMenu = document.getElementById('mobile-menu');
+
+            const firebaseConfig = {
+                apiKey: "AIzaSyD_FCx8sIkrCoQMoKm5xQIvlyAmlqptETk", // Keep user's API key
+                authDomain: "linq-b27a8.firebaseapp.com",
+                projectId: "linq-b27a8",
+                storageBucket: "linq-b27a8.appspot.com",
+                messagingSenderId: "1067901051826",
+                appId: "1:1067901051826:web:44452d1339cdbe2af07aab"
+            };
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
+            const authInstance = firebase.auth();
+
+            authInstance.onAuthStateChanged(user => {
+                const profileFullNameEl = document.getElementById('profileFullName');
+                const profileEmailEl = document.getElementById('profileEmail');
+                const profileUsernameEl = document.getElementById('profileUsername');
+                const profileJoinedDateEl = document.getElementById('profileJoinedDate');
+                const profileAvatarEl = document.getElementById('profileAvatar');
+
+                if (user) {
+                    // User is LOGGED IN
+                    if (authLinkDesktopLogin) authLinkDesktopLogin.classList.add('hidden');
+                    if (profileAndMenuDesktop) {
+                        profileAndMenuDesktop.classList.remove('hidden');
+                        profileAndMenuDesktop.classList.add('flex');
+                    }
+                    if (authLinkMobile) {
+                        authLinkMobile.textContent = "My Profile";
+                        authLinkMobile.href = "profile.html";
+                    }
+                    if (logoutButtonMobile) logoutButtonMobile.classList.remove('hidden');
+                    if (favoritesLinkMobile) favoritesLinkMobile.classList.remove('hidden');
+                    if (linqAiLinkMobile) linqAiLinkMobile.classList.remove('hidden');
+                    if (earningsLinkMobile) earningsLinkMobile.classList.remove('hidden');
+
+                    // Populate profile page with user data
+                    if (profileFullNameEl) profileFullNameEl.textContent = user.displayName || 'N/A';
+                    if (profileEmailEl) profileEmailEl.textContent = user.email || 'N/A';
+                    if (profileUsernameEl) profileUsernameEl.textContent = user.email ? user.email.split('@')[0] : (user.displayName || 'user');
+                    if (profileJoinedDateEl && user.metadata && user.metadata.creationTime) {
+                        profileJoinedDateEl.textContent = new Date(user.metadata.creationTime).toLocaleDateString();
+                    }
+                    if (profileAvatarEl) {
+                        if (user.photoURL) {
+                            profileAvatarEl.src = user.photoURL;
+                        } else {
+                            const initials = user.displayName ? user.displayName.charAt(0).toUpperCase() : (user.email ? user.email.charAt(0).toUpperCase() : 'U');
+                            profileAvatarEl.src = `https://placehold.co/120x120/1E1E1E/F5F5F5?text=${initials}&font=roboto`;
+                        }
+                    }
+                } else {
+                    // User is LOGGED OUT
+                    if (authLinkDesktopLogin) {
+                        authLinkDesktopLogin.classList.remove('hidden');
+                        authLinkDesktopLogin.classList.add('nav-link-button');
+                    }
+                    if (profileAndMenuDesktop) profileAndMenuDesktop.classList.add('hidden');
+                    if (authLinkMobile) {
+                        authLinkMobile.textContent = "Login";
+                        authLinkMobile.href = "login.html";
+                    }
+                    if (logoutButtonMobile) logoutButtonMobile.classList.add('hidden');
+                    if (favoritesLinkMobile) favoritesLinkMobile.classList.add('hidden');
+                    if (linqAiLinkMobile) linqAiLinkMobile.classList.add('hidden');
+                    if (earningsLinkMobile) earningsLinkMobile.classList.add('hidden');
+                    if (desktopSlideOutMenu && desktopSlideOutMenu.classList.contains('open')) {
+                        closeDesktopMenu();
+                    }
+                     // Optionally redirect if profile page is protected
+                    // if (window.location.pathname.endsWith('profile.html') || window.location.pathname.endsWith('account.html')) {
+                    //     showToast("Please log in to access your account.", "info");
+                    //     setTimeout(() => window.location.href = 'login.html', 2000);
+                    // }
+                }
+                setActiveNavLink();
+            });
+
+            window.handleGlobalLogout = function(e) {
+                if(e) e.preventDefault();
+                if (desktopSlideOutMenu && desktopSlideOutMenu.classList.contains('open')) closeDesktopMenu();
+                if (mobileMenu && !mobileMenu.classList.contains('hidden')) mobileMenu.classList.add('hidden');
+
+                authInstance.signOut().then(() => {
+                    console.log("User signed out");
+                    showToast("You have been logged out.", "info");
+                    setTimeout(() => window.location.href = 'index.html', 1500);
+                }).catch(error => {
+                    console.error("Sign out error", error);
+                    showToast("Error signing out: " + error.message, "error");
+                });
+            }
+
+            if (logoutButtonDesktopSlideout) logoutButtonDesktopSlideout.addEventListener('click', window.handleGlobalLogout);
+            if (logoutButtonMobile) logoutButtonMobile.addEventListener('click', window.handleGlobalLogout);
+
+            const sidebarLogout = document.getElementById('sidebar-logout-link');
+            if(sidebarLogout) sidebarLogout.addEventListener('click', window.handleGlobalLogout);
+
+
+            function setActiveNavLink() {
+                const currentPath = window.location.pathname.split("/").pop() || "index.html";
+                const navLinks = document.querySelectorAll('#header-placeholder nav.fixed a.nav-link, #header-placeholder #mobile-menu a.nav-link');
+
+                navLinks.forEach(link => {
+                    link.classList.remove('active');
+                    const linkHref = link.getAttribute('href');
+                    if (linkHref === currentPath) {
+                        link.classList.add('active');
+                    } else if ((currentPath === "index.html" || currentPath === "") && (linkHref === "index.html" || link.dataset.page === "index" || link.dataset.page === "index-mobile")) {
+                        link.classList.add('active');
+                    }
+                });
+            }
+
+            if (mobileMenuButton && mobileMenu) {
+                mobileMenuButton.addEventListener('click', () => mobileMenu.classList.toggle('hidden'));
+            }
+
+            function openDesktopMenu() {
+                if (desktopSlideOutMenu) desktopSlideOutMenu.classList.add('open');
+                if (menuOverlay) menuOverlay.classList.add('active');
+                document.body.classList.add('overflow-hidden');
+            }
+            function closeDesktopMenu() {
+                if (desktopSlideOutMenu) desktopSlideOutMenu.classList.remove('open');
+                if (menuOverlay) menuOverlay.classList.remove('active');
+                document.body.classList.remove('overflow-hidden');
+            }
+            if (desktopHamburgerButton) {
+                desktopHamburgerButton.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    if (desktopSlideOutMenu && desktopSlideOutMenu.classList.contains('open')) closeDesktopMenu();
+                    else openDesktopMenu();
+                });
+            }
+            if (menuOverlay) menuOverlay.addEventListener('click', closeDesktopMenu);
+            if (slideoutCloseButton) slideoutCloseButton.addEventListener('click', closeDesktopMenu);
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape' && desktopSlideOutMenu && desktopSlideOutMenu.classList.contains('open')) closeDesktopMenu();
+            });
+
+            setActiveNavLink(); // Initial call
+        }
+
+        // Fetch and Inject Header, then Initialize Header Logic
+        fetch('header.html')
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok for header.html');
+                return response.text();
+            })
+            .then(data => {
+                const headerPlaceholder = document.getElementById('header-placeholder');
+                if (headerPlaceholder) {
+                    headerPlaceholder.innerHTML = data;
+                    initializeHeaderAndAuth(); // Crucial: Initialize after header HTML is injected
+
+                    const fixedHeader = headerPlaceholder.querySelector('nav.fixed');
+                    if (fixedHeader) {
+                        document.querySelector('main').style.paddingTop = (fixedHeader.offsetHeight + 20) + 'px';
+                    }
+
+                    // Update nav profile pic (if it exists in header.html)
+                    firebase.auth().onAuthStateChanged(user => {
+                        const avatarImg = document.getElementById('navProfilePic'); // Assuming this ID is in header.html
+                        if (avatarImg && user) {
+                            if (user.photoURL) {
+                                avatarImg.src = user.photoURL;
+                            } else if (user.displayName) {
+                                const initials = user.displayName.charAt(0).toUpperCase();
+                                avatarImg.src = `https://placehold.co/40x40/2C2F33/EAEAEA?text=${initials}&font=roboto`;
+                            } else if (user.email) {
+                                const initials = user.email.charAt(0).toUpperCase();
+                                avatarImg.src = `https://placehold.co/40x40/2C2F33/EAEAEA?text=${initials}&font=roboto`;
+                            } else {
+                                avatarImg.src = 'https://placehold.co/40x40/2C2F33/EAEAEA?text=U&font=roboto';
+                            }
+                        }
+                    });
+
+                    // Avatar upload logic (moved here to ensure Firebase and DOM are ready)
+                    const changeAvatarButton = document.getElementById("changeAvatarButton");
+                    const avatarInput = document.getElementById("avatarInput");
+                    const profileAvatar = document.getElementById("profileAvatar"); // This is on the main page
+
+                    if (changeAvatarButton && avatarInput && profileAvatar) {
+                        changeAvatarButton.addEventListener("click", () => {
+                            avatarInput.click();
+                        });
+
+                        avatarInput.addEventListener("change", async () => {
+                            const file = avatarInput.files[0];
+                            if (!file) return;
+
+                            const user = firebase.auth().currentUser;
+                            if (!user) {
+                                showToast("You must be logged in to change your avatar.", "error");
+                                return;
+                            }
+
+                            // Basic file type and size validation (optional but recommended)
+                            if (!file.type.startsWith('image/')) {
+                                showToast("Please select an image file.", "error");
+                                return;
+                            }
+                            if (file.size > 5 * 1024 * 1024) { // 5MB limit
+                                showToast("File is too large. Max 5MB.", "error");
+                                return;
+                            }
+
+
+                            const storageRef = firebase.storage().ref();
+                            const avatarRef = storageRef.child(`avatars/${user.uid}/${file.name}`); // Store with original filename in user's folder
+
+                            try {
+                                showToast("Uploading avatar...", "info");
+                                const snapshot = await avatarRef.put(file);
+                                const downloadURL = await snapshot.ref.getDownloadURL();
+
+                                await user.updateProfile({ photoURL: downloadURL });
+                                profileAvatar.src = downloadURL;
+
+                                const navAvatar = document.getElementById('navProfilePic'); // In header
+                                if (navAvatar) navAvatar.src = downloadURL;
+
+                                showToast("Avatar updated successfully!", "success");
+                            } catch (error) {
+                                console.error("Error updating avatar:", error);
+                                showToast("Error uploading avatar: " + error.message, "error");
+                            }
+                        });
+                    }
+
+                } else {
+                    console.error('Header placeholder element not found.');
+                    showToast('Error loading navigation.', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching header:', error);
+                const headerPlaceholder = document.getElementById('header-placeholder');
+                if (headerPlaceholder) {
+                    headerPlaceholder.innerHTML = "<p class='text-red-500 text-center py-3'>Error loading navigation.</p>";
+                }
+                showToast('Error loading site navigation.', 'error');
+            });
+
+
+        // --- Profile Page Specific Logic (DOM Ready) ---
+        document.addEventListener('DOMContentLoaded', function () {
+            const sidebarLinks = document.querySelectorAll('.sidebar ul li a');
+            const contentSections = document.querySelectorAll('.content-section');
+
+            function showSection(sectionId) {
+                contentSections.forEach(section => section.classList.remove('active-section'));
+                const targetSection = document.getElementById(sectionId);
+                if (targetSection) {
+                     targetSection.classList.add('active-section');
+                } else {
+                    // Fallback to profile if sectionId is invalid
+                    document.getElementById('profile')?.classList.add('active-section');
+                }
+
+
+                sidebarLinks.forEach(link => {
+                    link.classList.remove('active-link');
+                    if (link.getAttribute('href') === `#${sectionId}`) {
+                        link.classList.add('active-link');
+                    }
+                });
+            }
+
+            sidebarLinks.forEach(link => {
+                link.addEventListener('click', function (e) {
+                    const targetSectionId = this.getAttribute('href').substring(1);
+                    if (targetSectionId && targetSectionId !== '#' && !this.classList.contains('logout-link')) { // Ensure it's not just '#' and not logout
+                        e.preventDefault();
+                        showSection(targetSectionId);
+                        window.location.hash = targetSectionId; // Update hash for deep linking
+
+                        // Close mobile menu if open (assuming it has ID 'mobile-menu')
+                        const mobileNav = document.getElementById('mobile-menu');
+                        if (mobileNav && !mobileNav.classList.contains('hidden')) {
+                            mobileNav.classList.add('hidden');
+                        }
+                    }
+                });
+            });
+
+            function activateSectionFromHash() {
+                let hash = window.location.hash.substring(1);
+                if (!hash) { // If no hash, default to 'profile'
+                    hash = 'profile';
+                    window.location.hash = hash; // Set default hash
+                }
+                const sectionExists = Array.from(contentSections).some(section => section.id === hash);
+                showSection(sectionExists ? hash : 'profile'); // Fallback to profile if hash is invalid
+            }
+
+            activateSectionFromHash(); // Call on initial load
+            window.addEventListener('hashchange', activateSectionFromHash); // Listen for hash changes
+
+
+            // --- Change Password Form ---
+            const changePasswordForm = document.getElementById('changePasswordForm');
+            if (changePasswordForm) {
+                changePasswordForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    const currentUser = firebase.auth().currentUser;
+                    if (!currentUser) {
+                        showToast("You must be logged in to change your password.", "error");
+                        return;
+                    }
+
+                    const currentPassword = document.getElementById('current-password').value;
+                    const newPassword = document.getElementById('new-password').value;
+                    const confirmPassword = document.getElementById('confirm-password').value;
+
+                    if (newPassword !== confirmPassword) {
+                        showToast("New passwords do not match.", "error");
+                        return;
+                    }
+                    if (newPassword.length < 6) {
+                        showToast("New password must be at least 6 characters long.", "error");
+                        return;
+                    }
+
+                    try {
+                        // Re-authenticate user
+                        const credential = firebase.auth.EmailAuthProvider.credential(currentUser.email, currentPassword);
+                        await currentUser.reauthenticateWithCredential(credential);
+
+                        // Update password
+                        await currentUser.updatePassword(newPassword);
+                        showToast("Password updated successfully!", "success");
+                        changePasswordForm.reset(); // Clear the form
+
+                    } catch (error) {
+                        console.error("Password change error:", error);
+                        let errorMessage = "Failed to update password.";
+                        if (error.code === 'auth/wrong-password') {
+                            errorMessage = "Incorrect current password.";
+                        } else if (error.code === 'auth/weak-password') {
+                            errorMessage = "New password is too weak.";
+                        } else if (error.code === 'auth/requires-recent-login') {
+                             errorMessage = "This operation is sensitive and requires recent authentication. Please log out and log back in before retrying.";
+                        }
+                        showToast(errorMessage, "error");
+                    }
+                });
+            }
+
+            // --- Notification Settings Form ---
+            const notificationSettingsForm = document.getElementById('notificationSettingsForm');
+            if (notificationSettingsForm) {
+                notificationSettingsForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const productUpdates = document.getElementById('product-updates-settings').checked;
+                    const securityAlerts = document.getElementById('security-alerts-settings').checked;
+                    const communityDigest = document.getElementById('community-digest-settings').checked;
+
+                    // In a real app, you'd save these settings to a backend/Firebase.
+                    console.log("Notification Settings:", { productUpdates, securityAlerts, communityDigest });
+                    showToast("Notification settings saved (simulated).", "success");
+                });
+            }
+
+            // --- Placeholder Button/Link Listeners ---
+            const placeholderButtons = [
+                { id: 'changePlanButton', message: 'Change Plan feature coming soon!' },
+                { id: 'viewBillingHistoryLink', message: 'Billing history will be available here.' },
+                { id: 'updatePaymentButton', message: 'Update Payment feature coming soon!' },
+                { id: 'manage2FAButton', message: '2FA Management feature coming soon!' },
+                { id: 'viewAllActivityLink', message: 'Full activity log will be shown here.' },
+                { id: 'visitHelpCenterButton', message: 'Redirecting to Help Center (placeholder)...' },
+                { id: 'contactSupportButton', message: 'Contact Support form will open (placeholder)...' }
+            ];
+
+            placeholderButtons.forEach(item => {
+                const element = document.getElementById(item.id);
+                if (element) {
+                    element.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        showToast(item.message, "info");
+                    });
+                }
+            });
+
+            const faqLinks = document.querySelectorAll('.faq-link');
+            faqLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    showToast(`Navigating to FAQ: "${this.textContent}" (placeholder).`, "info");
+                });
+            });
+        });
+    </script>
+</body>
+</html>

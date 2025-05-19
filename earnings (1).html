@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linq - Energy Earnings Calendar</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+    <style>
+        /* Base styles */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0A0A0A;
+            color: #E0E0E0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        body.overflow-hidden { /* For use with modals/slide-out menus */
+            overflow: hidden;
+        }
+
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-track { background: #1A1A1A; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background-color: #333333; border-radius: 10px; border: 2px solid #1A1A1A; }
+        ::-webkit-scrollbar-thumb:hover { background-color: #4A4A4A; }
+
+        /* Styles for the dynamically loaded header.html */
+        nav.fixed {
+            background-color: rgba(10, 10, 10, 0.85) !important;
+            backdrop-filter: blur(10px) saturate(150%) !important;
+            -webkit-backdrop-filter: blur(10px) saturate(150%) !important;
+            border-bottom: 1px solid #222222 !important;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            z-index: 1000 !important;
+            padding: 0.75rem 0 !important;
+        }
+        nav.fixed .container { 
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            width: 100% !important;
+            max-width: 1280px !important; 
+            margin: 0 auto !important;
+            padding: 0 1rem !important; 
+        }
+        @media (min-width: 640px) { nav.fixed .container { padding: 0 1.5rem !important; } }
+        @media (min-width: 1024px) { nav.fixed .container { padding: 0 2rem !important; } }
+
+        .nav-link {
+            transition: color 0.2s ease, opacity 0.2s ease, background-color 0.2s ease;
+            font-weight: 500; color: #B0B0B0; opacity: 0.8;   
+            padding: 0.5rem 0.75rem; border-radius: 0.375rem; font-size: 0.875rem; 
+        }
+        .nav-link:hover { color: #FFFFFF; opacity: 1; background-color: rgba(255,255,255,0.05); }
+        .nav-link.active { color: #FFFFFF; opacity: 1; background-color: transparent; }
+        #authLinkDesktopLogin.nav-link-button {
+            background-color: #00BFFF; color: #FFFFFF !important; opacity: 1 !important; padding: 0.5rem 1rem; 
+        }
+        #authLinkDesktopLogin.nav-link-button:hover { background-color: #00A9E0; opacity: 1; }
+        .profile-icon-placeholder { 
+            width: 2.25rem; height: 2.25rem; background-color: #333; border-radius: 50%; 
+            display: inline-flex; align-items: center; justify-content: center; 
+            cursor: pointer; border: 2px solid #4A4A4A; 
+        }
+        .profile-icon-placeholder svg { width: 1.25rem; height: 1.25rem; color: #B0B0B0; } 
+        .profile-icon-placeholder:hover { border-color: #00BFFF; } 
+        .desktop-hamburger-icon { cursor: pointer; padding: 0.375rem; color: #B0B0B0; border-radius: 0.25rem;} 
+        .desktop-hamburger-icon:hover { color: #FFFFFF; background-color: rgba(255,255,255,0.1); }
+        .desktop-hamburger-icon svg { width: 1.5rem; height: 1.5rem; } 
+        .slide-out-panel { 
+            display: flex; flex-direction: column; position: fixed; top: 0; right: 0; 
+            width: 320px; height: 100vh; background-color: #18181B; 
+            box-shadow: -10px 0 30px rgba(0,0,0,0.4); z-index: 1001; 
+            transform: translateX(100%); transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); 
+            padding: 1.5rem; overflow-y: auto; border-left: 1px solid #3F3F46; 
+        }
+        .slide-out-panel.open { transform: translateX(0); }
+        .slide-out-panel-header {
+            display: flex; justify-content: flex-end; align-items: center;
+            padding-bottom: 1.25rem; margin-bottom: 1.25rem; border-bottom: 1px solid #3F3F46; 
+        }
+        .slide-out-panel-close-btn {
+            background: none; border: none; color: #A0A0A0; font-size: 1.875rem; 
+            cursor: pointer; padding: 0.25rem; line-height: 1;
+            transition: color 0.2s ease, transform 0.2s ease;
+        }
+        .slide-out-panel-close-btn:hover { color: #FFFFFF; transform: rotate(90deg) scale(1.1); }
+        .slide-out-panel-nav { flex-grow: 1; display: flex; flex-direction: column; }
+        .slide-out-panel a {
+            color: #D4D4D8; padding: 1rem 1.25rem; text-decoration: none; display: block; 
+            font-size: 0.95rem; font-weight: 500; 
+            transition: background-color 0.2s ease, color 0.2s ease, border-left-color 0.2s ease; 
+            border-left: 4px solid transparent; margin: 0.375rem 0; border-radius: 0.375rem; 
+        }
+        .slide-out-panel a:hover { background-color: #27272A; color: #FFFFFF; border-left-color: #00BFFF; }
+        .slide-out-panel #logoutButtonSlideout { 
+            color: #F87171 !important; margin-top: auto; padding-top: 1rem; border-top: 1px solid #3F3F46; 
+        }
+        .slide-out-panel #logoutButtonSlideout:hover { 
+            background-color: rgba(248, 113, 113, 0.1); color: #FECACA !important; border-left-color: #F87171;
+        } 
+        #menu-overlay {
+            display: none; position: fixed; inset: 0;
+            background-color: rgba(0, 0, 0, 0.65); z-index: 1000; 
+            opacity: 0; transition: opacity 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+        #menu-overlay.active { display: block; opacity: 1; }
+        /* End of Header specific styles */
+
+        /* Page Content Wrapper */
+        .page-content-wrapper {
+            flex-grow: 1;
+            padding-top: 80px; /* Adjusted: Start content below fixed header. Will be fine-tuned by JS. */
+            padding-bottom: 4rem; /* Space for footer */
+            width: 100%;
+            max-width: 1200px; 
+            margin: 0 auto;
+        }
+
+        /* Page Title Section */
+        .calendar-page-heading-container { 
+            text-align: center;
+            margin-bottom: 2.5rem;
+            padding: 0 1rem;
+        }
+        .calendar-page-title {
+            font-size: 2.75rem;
+            font-weight: 700;
+            color: #FFFFFF;
+        }
+        .calendar-page-title .accent-text { color: #00BFFF; }
+        .calendar-page-subtitle {
+            font-size: 1.125rem;
+            color: #A0A0A0;
+            margin-top: 0.5rem;
+            font-weight: 400;
+        }
+
+        /* Filters Bar */
+        .filters-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            padding: 1rem;
+            background-color: rgba(26, 26, 26, 0.7); 
+            backdrop-filter: blur(8px);
+            border-radius: 0.75rem;
+            margin-bottom: 1.5rem; /* Adjusted margin */
+            border: 1px solid #282828;
+        }
+        .filter-group { display: flex; flex-direction: column; gap: 0.25rem; flex-grow: 1; min-width: 150px;}
+        .filter-group label { font-size: 0.8rem; color: #A0A0A0; margin-bottom: 0.25rem; }
+        .filter-select, .filter-input {
+            background-color: #121212;
+            border: 1px solid #333333;
+            color: #E0E0E0;
+            padding: 0.625rem 0.875rem;
+            border-radius: 0.375rem;
+            font-size: 0.9rem;
+            appearance: none; 
+        }
+        .filter-select {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23A0A0A0' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            background-size: 1.25em;
+        }
+        .filter-select:focus, .filter-input:focus {
+            outline: none;
+            border-color: #00BFFF;
+            box-shadow: 0 0 0 2px rgba(0, 191, 255, 0.2);
+        }
+
+        /* Sleek Button for Previous Earnings */
+        .previous-earnings-btn-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 2.5rem; /* Spacing before next section */
+        }
+        .previous-earnings-btn {
+            background-image: linear-gradient(to right, #007ACC, #00BFFF);
+            color: #FFFFFF;
+            font-weight: 500;
+            padding: 0.75rem 1.75rem;
+            border-radius: 0.5rem;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px -5px rgba(0, 150, 255, 0.4);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.95rem;
+            text-decoration: none; /* For anchor tag */
+        }
+        .previous-earnings-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px -5px rgba(0, 150, 255, 0.6);
+            background-image: linear-gradient(to right, #006BB2, #00A9E0);
+        }
+         .previous-earnings-btn i {
+            font-size: 1rem;
+        }
+
+
+        /* Calendar Section Titles */
+        .calendar-section-title {
+            font-size: 1.75rem;
+            font-weight: 600;
+            color: #FFFFFF;
+            margin-top: 2.5rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #333333;
+        }
+        .calendar-section-title .accent-text { color: #00BFFF; }
+
+        /* Earnings Call Card */
+        .earnings-card {
+            background-color: #121212;
+            border: 1px solid #282828;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+            box-shadow: 0 4px 15px -5px rgba(0,0,0,0.3);
+        }
+        .earnings-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px -8px rgba(0, 191, 255, 0.25);
+            border-color: #00BFFF;
+        }
+        .card-header { display: flex; align-items: center; gap: 1rem; }
+        .company-logo-placeholder {
+            width: 48px; height: 48px;
+            background-color: #282828;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 600; font-size: 1.25rem; color: #00BFFF;
+            border: 2px solid #333333;
+        }
+        .company-info h3 { font-size: 1.25rem; font-weight: 600; color: #FFFFFF; margin-bottom: 0.1rem;} /* Reduced margin */
+        .company-info .ticker { font-size: 0.9rem; color: #A0A0A0; }
+        .earnings-details { display: flex; flex-direction: column; gap: 0.5rem; }
+        .detail-item { display: flex; align-items: center; gap: 0.5rem; font-size: 0.95rem; color: #B0B0B0; }
+        .detail-item i { color: #00BFFF; width: 16px; text-align: center; }
+        .detail-label { font-weight: 500; color: #E0E0E0; margin-right: 0.25rem; }
+        .card-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 0.5rem; }
+        .action-btn {
+            background-color: #1A1A1A;
+            color: #00BFFF;
+            border: 1px solid #00BFFF;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            font-size: 0.8rem;
+            font-weight: 500;
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            transition: background-color 0.2s ease, color 0.2s ease;
+            cursor: pointer;
+        }
+        .action-btn:hover { background-color: #00BFFF; color: #FFFFFF; }
+        .action-btn i { font-size: 0.9rem; }
+        .action-btn.disabled-btn { /* Style for disabled transcript button if needed */
+            background-color: #2a2a2a;
+            color: #707070;
+            border-color: #4a4a4a;
+            cursor: not-allowed;
+        }
+         .action-btn.disabled-btn:hover {
+            background-color: #2a2a2a;
+            color: #707070;
+        }
+
+
+        /* Footer */
+        .footer {
+            background-color: #080808;
+            color: #A0A0A0;
+            padding: 2.5rem 1rem;
+            border-top: 1px solid #1A1A1A;
+            text-align: center;
+            font-size: 0.875rem;
+            margin-top: auto; /* Pushes footer to bottom in flex column */
+        }
+        .footer a { color: #B0B0B0; transition: color 0.2s ease; }
+        .footer a:hover { color: #00BFFF; }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .calendar-page-title { font-size: 2.25rem; }
+            .calendar-page-subtitle { font-size: 1rem; }
+            .filters-bar { flex-direction: column; }
+            .filter-group { min-width: 100%; }
+            .earnings-card { padding: 1rem; }
+            .company-info h3 { font-size: 1.1rem; }
+            .card-actions { justify-content: flex-start; }
+            .page-content-wrapper { padding-top: 70px; } /* Adjust if header height is different on mobile */
+        }
+         @media (max-width: 480px) {
+            .calendar-page-title { font-size: 1.85rem;}
+            .calendar-page-subtitle { font-size: 0.9rem; }
+            .previous-earnings-btn { padding: 0.6rem 1.25rem; font-size: 0.9rem;}
+        }
+    </style>
+</head>
+<body class="antialiased">
+    <div id="header-placeholder"></div>
+
+    <div class="page-content-wrapper px-4 sm:px-6 lg:px-8">
+        <div class="calendar-page-heading-container">
+            <h1 class="calendar-page-title">Energy Sector <span class="accent-text">Earnings Calendar</span></h1>
+            <p class="calendar-page-subtitle">Stay Ahead with Upcoming Energy Company Earnings Announcements</p>
+        </div>
+
+        <div class="filters-bar">
+            <div class="filter-group">
+                <label for="date-range">Date Range</label>
+                <select id="date-range" class="filter-select">
+                    <option>All Upcoming</option>
+                    <option>Next 7 Days</option>
+                    <option>Next 30 Days</option>
+                    <option>This Quarter</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="sector">Sector</label>
+                <select id="sector" class="filter-select">
+                    <option>All Energy</option>
+                    <option>Oil & Gas E&P</option>
+                    <option>Midstream</option>
+                    <option>Oilfield Services</option>
+                    <option>Renewables</option>
+                    <option>Utilities</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="market-cap">Market Cap</label>
+                <select id="market-cap" class="filter-select">
+                    <option>All</option>
+                    <option>Large Cap (>$10B)</option>
+                    <option>Mid Cap ($2B-$10B)</option>
+                    <option>Small Cap (<$2B)</option>
+                </select>
+            </div>
+            <div class="filter-group flex-grow-[2]">
+                <label for="search-company">Search Company</label>
+                <input type="text" id="search-company" class="filter-input" placeholder="Enter ticker or name...">
+            </div>
+        </div>
+
+        <div class="previous-earnings-btn-container">
+            <a href="previous_earnings.html" id="view-previous-earnings-btn" class="previous-earnings-btn">
+                <i class="fas fa-history"></i> View Previous Earnings Reports
+            </a>
+        </div>
+
+        <div>
+            <h2 class="calendar-section-title">Next <span class="accent-text">7 Days</span> (May 12 - May 18, 2025)</h2>
+            
+            <div class="earnings-card">
+                <div class="card-header">
+                    <div class="company-logo-placeholder"><span>XOM</span></div>
+                    <div class="company-info">
+                        <h3>ExxonMobil Corporation</h3>
+                        <p class="ticker">NYSE: XOM</p>
+                    </div>
+                </div>
+                <div class="earnings-details">
+                    <div class="detail-item"><i class="fas fa-calendar-alt"></i> <span class="detail-label">Date:</span> May 14, 2025</div>
+                    <div class="detail-item"><i class="fas fa-clock"></i> <span class="detail-label">Time:</span> 09:00 AM ET</div>
+                    <div class="detail-item"><i class="fas fa-chart-line"></i> <span class="detail-label">Period:</span> Q2 2025 Earnings</div>
+                </div>
+                <div class="card-actions">
+                    <button class="action-btn add-to-calendar-btn"
+                            data-company="ExxonMobil Corporation"
+                            data-ticker="XOM"
+                            data-date="2025-05-14"
+                            data-time="09:00"
+                            data-timezone="ET" 
+                            data-period="Q2 2025">
+                        <i class="fas fa-calendar-plus"></i> Add to Calendar
+                    </button>
+                    <button class="action-btn webcast-btn" data-webcast-url="https://corporate.exxonmobil.com/investors/events-and-presentations"><i class="fas fa-broadcast-tower"></i> Webcast</button>
+                    <button class="action-btn transcript-upcoming-btn"><i class="fas fa-file-alt"></i> Transcript</button>
+                </div>
+            </div>
+
+            <div class="earnings-card">
+                <div class="card-header">
+                    <div class="company-logo-placeholder"><span>NEE</span></div>
+                    <div class="company-info">
+                        <h3>NextEra Energy, Inc.</h3>
+                        <p class="ticker">NYSE: NEE</p>
+                    </div>
+                </div>
+                <div class="earnings-details">
+                    <div class="detail-item"><i class="fas fa-calendar-alt"></i> <span class="detail-label">Date:</span> May 15, 2025</div>
+                    <div class="detail-item"><i class="fas fa-clock"></i> <span class="detail-label">Time:</span> 10:00 AM ET</div>
+                    <div class="detail-item"><i class="fas fa-chart-line"></i> <span class="detail-label">Period:</span> Q2 2025 Earnings</div>
+                </div>
+                <div class="card-actions">
+                     <button class="action-btn add-to-calendar-btn"
+                            data-company="NextEra Energy, Inc."
+                            data-ticker="NEE"
+                            data-date="2025-05-15"
+                            data-time="10:00"
+                            data-timezone="ET"
+                            data-period="Q2 2025">
+                        <i class="fas fa-calendar-plus"></i> Add to Calendar
+                    </button>
+                    <button class="action-btn webcast-btn" data-webcast-url="https://www.investor.nexteraenergy.com/events-presentations"><i class="fas fa-broadcast-tower"></i> Webcast</button>
+                    <button class="action-btn transcript-upcoming-btn"><i class="fas fa-file-alt"></i> Transcript</button>
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <h2 class="calendar-section-title">Upcoming This Month <span class="accent-text">(May 2025)</span></h2>
+             <div class="earnings-card">
+                <div class="card-header">
+                    <div class="company-logo-placeholder"><span>CVX</span></div>
+                    <div class="company-info">
+                        <h3>Chevron Corporation</h3>
+                        <p class="ticker">NYSE: CVX</p>
+                    </div>
+                </div>
+                <div class="earnings-details">
+                    <div class="detail-item"><i class="fas fa-calendar-alt"></i> <span class="detail-label">Date:</span> May 21, 2025</div>
+                    <div class="detail-item"><i class="fas fa-clock"></i> <span class="detail-label">Time:</span> 11:00 AM ET</div>
+                    <div class="detail-item"><i class="fas fa-chart-line"></i> <span class="detail-label">Period:</span> Q2 2025 Earnings</div>
+                </div>
+                <div class="card-actions">
+                    <button class="action-btn add-to-calendar-btn"
+                            data-company="Chevron Corporation"
+                            data-ticker="CVX"
+                            data-date="2025-05-21"
+                            data-time="11:00"
+                            data-timezone="ET"
+                            data-period="Q2 2025">
+                        <i class="fas fa-calendar-plus"></i> Add to Calendar
+                    </button>
+                    <button class="action-btn webcast-btn" data-webcast-url="https://www.chevron.com/investors/events-presentations"><i class="fas fa-broadcast-tower"></i> Webcast</button>
+                    <button class="action-btn transcript-upcoming-btn"><i class="fas fa-file-alt"></i> Transcript</button>
+                </div>
+            </div>
+            <div class="earnings-card">
+                <div class="card-header">
+                    <div class="company-logo-placeholder"><span>SLB</span></div>
+                    <div class="company-info">
+                        <h3>Schlumberger Limited</h3>
+                        <p class="ticker">NYSE: SLB</p>
+                    </div>
+                </div>
+                <div class="earnings-details">
+                    <div class="detail-item"><i class="fas fa-calendar-alt"></i> <span class="detail-label">Date:</span> May 28, 2025</div>
+                    <div class="detail-item"><i class="fas fa-clock"></i> <span class="detail-label">Time:</span> 08:30 AM ET</div>
+                    <div class="detail-item"><i class="fas fa-chart-line"></i> <span class="detail-label">Period:</span> Q2 2025 Earnings</div>
+                </div>
+                <div class="card-actions">
+                    <button class="action-btn add-to-calendar-btn"
+                            data-company="Schlumberger Limited"
+                            data-ticker="SLB"
+                            data-date="2025-05-28"
+                            data-time="08:30"
+                            data-timezone="ET"
+                            data-period="Q2 2025">
+                        <i class="fas fa-calendar-plus"></i> Add to Calendar
+                    </button>
+                    <button class="action-btn webcast-btn" data-webcast-url="https://investorcenter.slb.com/financial-information/quarterly-results"><i class="fas fa-broadcast-tower"></i> Webcast</button>
+                    <button class="action-btn transcript-upcoming-btn"><i class="fas fa-file-alt"></i> Transcript</button>
+                </div>
+            </div>
+        </div>
+
+         <div>
+            <h2 class="calendar-section-title">Later <span class="accent-text">(June 2025 & Beyond)</span></h2>
+            <div class="earnings-card">
+                <div class="card-header">
+                    <div class="company-logo-placeholder"><span>SHEL</span></div>
+                    <div class="company-info">
+                        <h3>Shell plc</h3>
+                        <p class="ticker">NYSE: SHEL</p>
+                    </div>
+                </div>
+                <div class="earnings-details">
+                    <div class="detail-item"><i class="fas fa-calendar-alt"></i> <span class="detail-label">Date:</span> June 05, 2025</div>
+                    <div class="detail-item"><i class="fas fa-clock"></i> <span class="detail-label">Time:</span> 09:00 AM GMT</div> <div class="detail-item"><i class="fas fa-chart-line"></i> <span class="detail-label">Period:</span> Q2 2025 Earnings</div>
+                </div>
+                <div class="card-actions">
+                    <button class="action-btn add-to-calendar-btn"
+                            data-company="Shell plc"
+                            data-ticker="SHEL"
+                            data-date="2025-06-05"
+                            data-time="09:00"
+                            data-timezone="GMT" 
+                            data-period="Q2 2025">
+                        <i class="fas fa-calendar-plus"></i> Add to Calendar
+                    </button>
+                    <button class="action-btn webcast-btn" data-webcast-url="https://www.shell.com/investors/financial-results-and-reporting/quarterly-results.html"><i class="fas fa-broadcast-tower"></i> Webcast</button>
+                    <button class="action-btn transcript-upcoming-btn"><i class="fas fa-file-alt"></i> Transcript</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>&copy; <span id="current-year"></span> Linq Energy Intelligence. Advanced AI for a Brighter Future.</p>
+        <nav class="text-xs space-x-3 mt-2">
+            <a href="#">Privacy Policy</a> |
+            <a href="#">Terms of Service</a> |
+            <a href="#">Contact Us</a> |
+            <a href="#">API Status</a>
+        </nav>
+    </footer>
+
+    <script>
+        // --- Function to Initialize and Run All Header Related Logic ---
+        function initializeHeaderAndAuth() {
+            const authLinkDesktopLogin = document.getElementById('authLinkDesktopLogin');
+            const profileAndMenuDesktop = document.getElementById('profileAndMenuDesktop');
+            const authLinkMobile = document.getElementById('authLinkMobile');
+            const logoutButtonMobile = document.getElementById('logoutButtonMobile');
+            const favoritesLinkMobile = document.getElementById('favoritesLinkMobile');
+            const linqAiLinkMobile = document.getElementById('linqAiLinkMobile'); 
+            const earningsLinkMobile = document.getElementById('earningsLinkMobile'); 
+            const desktopSlideOutMenu = document.getElementById('desktop-slideout-menu');
+            const menuOverlay = document.getElementById('menu-overlay'); 
+            const logoutButtonDesktopSlideout = document.getElementById('logoutButtonSlideout');
+            const desktopHamburgerButton = document.getElementById('desktop-hamburger-button');
+            const slideoutCloseButton = document.getElementById('slideout-close-button');
+            const mobileMenuButton = document.getElementById('mobile-menu-button');
+            const mobileMenu = document.getElementById('mobile-menu');
+
+            const firebaseConfig = { 
+                apiKey: "AIzaSyD_FCx8sIkrCoQMoKm5xQIvlyAmlqptETk", // IMPORTANT: Store securely
+                authDomain: "linq-b27a8.firebaseapp.com",
+                projectId: "linq-b27a8",
+                storageBucket: "linq-b27a8.appspot.com",
+                messagingSenderId: "1067901051826",
+                appId: "1:1067901051826:web:44452d1339cdbe2af07aab"
+            };
+            if (!firebase.apps.length) { 
+                firebase.initializeApp(firebaseConfig);
+            }
+            const authInstance = firebase.auth();
+
+            authInstance.onAuthStateChanged(user => {
+                if (user) {
+                    if (authLinkDesktopLogin) authLinkDesktopLogin.classList.add('hidden');
+                    if (profileAndMenuDesktop) {
+                        profileAndMenuDesktop.classList.remove('hidden');
+                        profileAndMenuDesktop.classList.add('flex');
+                    }
+                    if (authLinkMobile) {
+                        authLinkMobile.textContent = "My Profile";
+                        authLinkMobile.href = "profile.html";
+                    }
+                    if (logoutButtonMobile) logoutButtonMobile.classList.remove('hidden');
+                    if (favoritesLinkMobile) favoritesLinkMobile.classList.remove('hidden');
+                    if (linqAiLinkMobile) linqAiLinkMobile.classList.remove('hidden');
+                    if (earningsLinkMobile) earningsLinkMobile.classList.remove('hidden');
+                } else {
+                    if (authLinkDesktopLogin) {
+                        authLinkDesktopLogin.classList.remove('hidden');
+                        authLinkDesktopLogin.classList.add('nav-link-button');
+                    }
+                    if (profileAndMenuDesktop) profileAndMenuDesktop.classList.add('hidden');
+                    if (authLinkMobile) {
+                        authLinkMobile.textContent = "Login";
+                        authLinkMobile.href = "login.html";
+                    }
+                    if (logoutButtonMobile) logoutButtonMobile.classList.add('hidden');
+                    if (favoritesLinkMobile) favoritesLinkMobile.classList.add('hidden');
+                    if (linqAiLinkMobile) linqAiLinkMobile.classList.add('hidden');
+                    if (earningsLinkMobile) earningsLinkMobile.classList.add('hidden');
+                    if (desktopSlideOutMenu && desktopSlideOutMenu.classList.contains('open')) {
+                        closeDesktopMenu();
+                    }
+                }
+                setActiveNavLink();
+            });
+
+            function handleLogout(e) {
+                e.preventDefault();
+                if (desktopSlideOutMenu && desktopSlideOutMenu.classList.contains('open')) closeDesktopMenu();
+                if (mobileMenu && !mobileMenu.classList.contains('hidden')) mobileMenu.classList.add('hidden');
+                authInstance.signOut().then(() => {
+                    console.log("User signed out");
+                    window.location.href = 'index.html'; 
+                }).catch(error => console.error("Sign out error", error));
+            }
+
+            if (logoutButtonDesktopSlideout) logoutButtonDesktopSlideout.addEventListener('click', handleLogout);
+            if (logoutButtonMobile) logoutButtonMobile.addEventListener('click', handleLogout);
+
+            function setActiveNavLink() {
+                const currentPath = window.location.pathname.split("/").pop() || "index.html";
+                const navLinks = document.querySelectorAll('#header-placeholder nav.fixed a.nav-link, #header-placeholder #mobile-menu a.nav-link');
+                
+                navLinks.forEach(link => {
+                    link.classList.remove('active');
+                    const linkHref = link.getAttribute('href');
+                    
+                    if (linkHref === currentPath) {
+                        link.classList.add('active');
+                    } else if ((currentPath === "index.html" || currentPath === "") && (linkHref === "index.html" || link.dataset.page === "index" || link.dataset.page === "index-mobile")) {
+                        link.classList.add('active');
+                    } else if (currentPath === "earnings.html" && linkHref === "earnings.html") { 
+                         link.classList.add('active');
+                    }
+                });
+            }
+
+            if (mobileMenuButton && mobileMenu) {
+                mobileMenuButton.addEventListener('click', () => mobileMenu.classList.toggle('hidden'));
+            }
+
+            function openDesktopMenu() {
+                if (desktopSlideOutMenu) desktopSlideOutMenu.classList.add('open');
+                if (menuOverlay) menuOverlay.classList.add('active');
+                document.body.classList.add('overflow-hidden');
+            }
+            function closeDesktopMenu() {
+                if (desktopSlideOutMenu) desktopSlideOutMenu.classList.remove('open');
+                if (menuOverlay) menuOverlay.classList.remove('active');
+                document.body.classList.remove('overflow-hidden');
+            }
+            if (desktopHamburgerButton) {
+                desktopHamburgerButton.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    if (desktopSlideOutMenu && desktopSlideOutMenu.classList.contains('open')) closeDesktopMenu();
+                    else openDesktopMenu();
+                });
+            }
+            if (menuOverlay) menuOverlay.addEventListener('click', closeDesktopMenu);
+            if (slideoutCloseButton) slideoutCloseButton.addEventListener('click', closeDesktopMenu);
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape' && desktopSlideOutMenu && desktopSlideOutMenu.classList.contains('open')) closeDesktopMenu();
+            });
+
+            setActiveNavLink(); // Initial call
+        }
+
+        // Fetch and Inject Header, then Initialize Header Logic
+        fetch('header.html') 
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok for header.html');
+                return response.text();
+            })
+            .then(data => {
+                const headerPlaceholder = document.getElementById('header-placeholder');
+                if (headerPlaceholder) {
+                    headerPlaceholder.innerHTML = data;
+        
+                    initializeHeaderAndAuth(); 
+        
+                    const fixedHeader = headerPlaceholder.querySelector('nav.fixed');
+                    if (fixedHeader) {
+                        document.querySelector('.page-content-wrapper').style.paddingTop = (fixedHeader.offsetHeight + 20) + 'px'; // 20px buffer
+                    }
+        
+                    // ✅ Set profile picture in header
+                    firebase.auth().onAuthStateChanged(user => {
+                        const avatarImg = document.getElementById('navProfilePic');
+                        if (avatarImg && user) {
+                            if (user.photoURL) {
+                                avatarImg.src = user.photoURL;
+                            } else if (user.displayName) {
+                                const initials = user.displayName.charAt(0).toUpperCase();
+                                avatarImg.src = `https://placehold.co/40x40/2C2F33/EAEAEA?text=${initials}`;
+                            }
+                        }
+                    });
+        
+                } else {
+                    console.error('Header placeholder element not found.');
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching header:', error);
+            });
+
+        // --- Earnings Page Specific JavaScript ---
+        document.getElementById('current-year').textContent = new Date().getFullYear();
+
+        // Add to Calendar Button Functionality
+        document.querySelectorAll('.add-to-calendar-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const company = this.dataset.company;
+                const ticker = this.dataset.ticker;
+                const date = this.dataset.date; 
+                const time = this.dataset.time; 
+                const timezone = this.dataset.timezone; 
+                const period = this.dataset.period;
+
+                const [year, month, day] = date.split('-').map(Number);
+                const [hour, minute] = time.split(':').map(Number);
+                
+                let utcYear = year;
+                let utcMonth = month -1; 
+                let utcDay = day;
+                let utcHour = hour;
+
+                // Basic timezone adjustment 
+                if (timezone === "ET") { 
+                    // Assuming Eastern Time is UTC-4 (e.g., EDT). 
+                    // For May, EDT (UTC-4) is typically active.
+                    // A more robust solution would use a library for timezone conversions.
+                    utcHour = hour + 4; 
+                } else if (timezone === "GMT") {
+                    // GMT is UTC
+                }
+                // Add more timezone conversions if needed for other zones (CT, MT, PT etc.)
+
+                const startDateUtc = new Date(Date.UTC(utcYear, utcMonth, utcDay, utcHour, minute, 0));
+                const endDateUtc = new Date(startDateUtc.getTime() + (60 * 60 * 1000)); // Assume 1 hour duration
+
+                const formatDateToICS = (dateObj) => {
+                    return dateObj.getUTCFullYear() +
+                           ('0' + (dateObj.getUTCMonth() + 1)).slice(-2) +
+                           ('0' + dateObj.getUTCDate()).slice(-2) + 'T' +
+                           ('0' + dateObj.getUTCHours()).slice(-2) +
+                           ('0' + dateObj.getUTCMinutes()).slice(-2) +
+                           ('0' + dateObj.getUTCSeconds()).slice(-2) + 'Z';
+                };
+
+                const dtstamp = formatDateToICS(new Date());
+                const dtstart = formatDateToICS(startDateUtc);
+                const dtend = formatDateToICS(endDateUtc);
+                
+                const summary = `${ticker} ${period} Earnings Call`;
+                const description = `${company} (${ticker}) ${period} earnings call.\nEvent time: ${time} ${timezone}.`;
+                const uid = `${dtstart}-${ticker.replace(/[^a-zA-Z0-9]/g, "")}@linq.ai`;
+
+                const icsContent = [
+                    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//LinqAI//EarningsCalendar//EN',
+                    'BEGIN:VEVENT',
+                    `UID:${uid}`, `DTSTAMP:${dtstamp}`, `DTSTART:${dtstart}`, `DTEND:${dtend}`,
+                    `SUMMARY:${summary}`, `DESCRIPTION:${description.replace(/\n/g, '\\n')}`,
+                    'LOCATION:Webcast/Conference Call', 
+                    'END:VEVENT', 'END:VCALENDAR'
+                ].join('\r\n');
+
+                const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `${ticker}_${period.replace(/\s+/g, '_')}_earnings.ics`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href); 
+            });
+        });
+        
+        function showNotification(message) {
+            const existingNotification = document.querySelector('.linq-notification');
+            if (existingNotification) {
+                document.body.removeChild(existingNotification);
+            }
+
+            const notification = document.createElement('div');
+            notification.className = 'linq-notification'; // Add a class for potential removal
+            notification.textContent = message;
+            notification.style.position = 'fixed';
+            notification.style.bottom = '20px';
+            notification.style.left = '50%';
+            notification.style.transform = 'translateX(-50%)';
+            notification.style.backgroundColor = '#00BFFF'; // Linq accent color
+            notification.style.color = 'white';
+            notification.style.padding = '12px 25px';
+            notification.style.borderRadius = '6px';
+            notification.style.zIndex = '10001'; // Ensure it's on top
+            notification.style.boxShadow = '0 4px 15px rgba(0,0,0,0.2)';
+            notification.style.fontSize = '0.9rem';
+            notification.style.textAlign = 'center';
+            document.body.appendChild(notification);
+            setTimeout(() => {
+                if (document.body.contains(notification)) {
+                     document.body.removeChild(notification);
+                }
+            }, 3500);
+        }
+
+
+        // Transcript Button Functionality for Upcoming Earnings
+        document.querySelectorAll('.transcript-upcoming-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                showNotification('Transcript will be available after the earnings call.');
+            });
+        });
+
+        // Webcast Button Functionality for Upcoming Earnings
+        document.querySelectorAll('.webcast-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const webcastUrl = this.dataset.webcastUrl;
+                if (webcastUrl && webcastUrl !== '#') {
+                    window.open(webcastUrl, '_blank');
+                } else {
+                    showNotification('Webcast link not yet available or is a placeholder.');
+                }
+            });
+        });
+        
+    </script>
+
+</body>
+</html>

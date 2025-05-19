@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linq AI - Your Energy Questions Answered</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+    <style>
+        /* Base styles */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0A0A0A;
+            color: #E0E0E0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        body.overflow-hidden { /* For use with modals/slide-out menus */
+            overflow: hidden;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-track { background: #1A1A1A; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background-color: #333333; border-radius: 10px; border: 2px solid #1A1A1A; }
+        ::-webkit-scrollbar-thumb:hover { background-color: #4A4A4A; }
+
+        /* Styles for the dynamically loaded header (nav.fixed, .nav-link etc.) */
+        /* These should ideally be in header.html or a shared CSS file linked by header.html */
+        nav.fixed {
+            background-color: rgba(10, 10, 10, 0.85) !important;
+            backdrop-filter: blur(10px) saturate(150%) !important;
+            -webkit-backdrop-filter: blur(10px) saturate(150%) !important;
+            border-bottom: 1px solid #222222 !important;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            z-index: 1000 !important;
+            padding: 0.75rem 0 !important;
+        }
+        .nav-link {
+            transition: color 0.2s ease, opacity 0.2s ease, background-color 0.2s ease;
+            font-weight: 500; color: #B0B0B0; opacity: 0.8;   
+            padding: 0.5rem 0.75rem; border-radius: 0.375rem; font-size: 0.875rem; 
+        }
+        .nav-link:hover { color: #FFFFFF; opacity: 1; background-color: rgba(255,255,255,0.05); }
+        .nav-link.active { color: #FFFFFF; opacity: 1; background-color: transparent; }
+        #authLinkDesktopLogin.nav-link-button {
+            background-color: #00BFFF; color: #FFFFFF !important; opacity: 1 !important; padding: 0.5rem 1rem; 
+        }
+        #authLinkDesktopLogin.nav-link-button:hover { background-color: #00A9E0; opacity: 1; }
+        .profile-icon-placeholder { 
+            width: 2.25rem; height: 2.25rem; background-color: #333; border-radius: 50%; 
+            display: inline-flex; align-items: center; justify-content: center; 
+            cursor: pointer; border: 2px solid #4A4A4A; 
+        }
+        .profile-icon-placeholder svg { width: 1.25rem; height: 1.25rem; color: #B0B0B0; } 
+        .profile-icon-placeholder:hover { border-color: #00BFFF; } 
+        .desktop-hamburger-icon { cursor: pointer; padding: 0.375rem; color: #B0B0B0; border-radius: 0.25rem;} 
+        .desktop-hamburger-icon:hover { color: #FFFFFF; background-color: rgba(255,255,255,0.1); }
+        .desktop-hamburger-icon svg { width: 1.5rem; height: 1.5rem; } 
+        .slide-out-panel { 
+            display: flex; flex-direction: column; position: fixed; top: 0; right: 0; 
+            width: 320px; height: 100vh; background-color: #18181B; 
+            box-shadow: -10px 0 30px rgba(0,0,0,0.4); z-index: 1001; 
+            transform: translateX(100%); transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); 
+            padding: 1.5rem; overflow-y: auto; border-left: 1px solid #3F3F46; 
+        }
+        .slide-out-panel.open { transform: translateX(0); }
+        .slide-out-panel-header {
+            display: flex; justify-content: flex-end; align-items: center;
+            padding-bottom: 1.25rem; margin-bottom: 1.25rem; border-bottom: 1px solid #3F3F46; 
+        }
+        .slide-out-panel-close-btn {
+            background: none; border: none; color: #A0A0A0; font-size: 1.875rem; 
+            cursor: pointer; padding: 0.25rem; line-height: 1;
+            transition: color 0.2s ease, transform 0.2s ease;
+        }
+        .slide-out-panel-close-btn:hover { color: #FFFFFF; transform: rotate(90deg) scale(1.1); }
+        .slide-out-panel-nav { flex-grow: 1; display: flex; flex-direction: column; }
+        .slide-out-panel a {
+            color: #D4D4D8; padding: 1rem 1.25rem; text-decoration: none; display: block; 
+            font-size: 0.95rem; font-weight: 500; 
+            transition: background-color 0.2s ease, color 0.2s ease, border-left-color 0.2s ease; 
+            border-left: 4px solid transparent; margin: 0.375rem 0; border-radius: 0.375rem; 
+        }
+        .slide-out-panel a:hover { background-color: #27272A; color: #FFFFFF; border-left-color: #00BFFF; }
+        .slide-out-panel #logoutButtonSlideout { 
+            color: #F87171 !important; margin-top: auto; padding-top: 1rem; border-top: 1px solid #3F3F46; 
+        }
+        .slide-out-panel #logoutButtonSlideout:hover { 
+            background-color: rgba(248, 113, 113, 0.1); color: #FECACA !important; border-left-color: #F87171;
+        } 
+        #menu-overlay {
+            display: none; position: fixed; inset: 0;
+            background-color: rgba(0, 0, 0, 0.65); z-index: 1000; 
+            opacity: 0; transition: opacity 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+        #menu-overlay.active { display: block; opacity: 1; }
+        /* End of Header specific styles */
+
+        /* Main content area */
+        .chat-container-wrapper {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            padding-top: 70px; /* Initial padding, will be adjusted by JS */
+            padding-bottom: 100px; /* Space for the fixed input area */
+            width: 100%;
+            max-width: 900px; /* Max width of chat content */
+            margin: 0 auto;
+        }
+
+        /* Chat Page Title & Subtitle */
+        .page-heading-container {
+            text-align: center;
+            margin-bottom: 2rem; 
+            padding: 0 1rem; /* Horizontal padding for smaller screens */
+        }
+        .chat-page-title {
+            font-size: 2.75rem;
+            font-weight: 700;
+            color: #FFFFFF;
+        }
+        .chat-page-title .accent-text { color: #00BFFF; }
+        .chat-page-subtitle {
+            font-size: 1.125rem; 
+            color: #9CA3AF; 
+            margin-top: 0.5rem; 
+            font-weight: 400;
+        }
+
+        /* Chat Window */
+        .chat-window {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 1.5rem 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-bottom: 1.5rem; /* Space above input area */
+        }
+
+        /* Message Bubbles - Enhanced */
+        .message-bubble {
+            padding: 1rem 1.5rem;
+            border-radius: 1.25rem;
+            max-width: 80%;
+            line-height: 1.6;
+            font-size: 0.95rem;
+            position: relative;
+            animation: fadeIn 0.3s ease-out;
+            border: 1px solid transparent;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .message-bubble.user {
+            background: linear-gradient(135deg, #00AFFF, #007ACC);
+            color: #FFFFFF;
+            align-self: flex-end;
+            border-radius: 1.25rem 1.25rem 0.5rem 1.25rem;
+            box-shadow: 0 8px 25px -8px rgba(0, 175, 255, 0.4);
+        }
+        .message-bubble.ai {
+            background-color: #1E293B; /* Tailwind slate-800 */
+            color: #CBD5E1; /* Tailwind slate-300 */
+            align-self: flex-start;
+            border-radius: 1.25rem 1.25rem 1.25rem 0.5rem;
+            display: flex;
+            align-items: flex-start;
+            box-shadow: 0 8px 25px -8px rgba(0, 0, 0, 0.4);
+            border: 1px solid #2D3748; /* Tailwind slate-700 */
+        }
+        .ai-icon {
+            width: 2.25rem;
+            height: 2.25rem;
+            margin-right: 1rem;
+            flex-shrink: 0;
+            background: linear-gradient(135deg, #00BFFF, #6A0DAD); /* Linq Blue to Purple */
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 15px rgba(0, 191, 255, 0.5);
+            animation: pulseIcon 2s infinite ease-in-out;
+        }
+        @keyframes pulseIcon { 0%, 100% { transform: scale(1); box-shadow: 0 0 15px rgba(0, 191, 255, 0.3); } 50% { transform: scale(1.05); box-shadow: 0 0 25px rgba(0, 191, 255, 0.5); } }
+        .ai-icon svg, .ai-icon i { width: 1.25rem; height: 1.25rem; color: #FFFFFF; }
+
+        .message-content { word-wrap: break-word; }
+        .message-timestamp {
+            font-size: 0.7rem;
+            color: rgba(255, 255, 255, 0.55);
+            margin-top: 0.375rem;
+            display: block;
+        }
+        .message-bubble.ai .message-timestamp { color: #718096; } /* Tailwind slate-500 */
+        .message-bubble.user .message-timestamp { text-align: right; }
+
+        /* Typing Indicator */
+        .typing-indicator { padding: 1rem; }
+        .typing-indicator .message-content span {
+            height: 10px; width: 10px; margin: 0 3px; background-color: #718096; /* Tailwind slate-500 */
+            border-radius: 50%; display: inline-block;
+            animation: bounceTyping 1.4s infinite ease-in-out both;
+        }
+        .typing-indicator .message-content span:nth-child(1) { animation-delay: -0.32s; }
+        .typing-indicator .message-content span:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounceTyping { 0%, 80%, 100% { transform: scale(0.5); opacity: 0.5; } 40% { transform: scale(1.0); opacity: 1;} }
+
+        /* Chat Input Area - Enhanced */
+        .chat-input-area {
+            display: flex;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            background-color: rgba(18, 18, 18, 0.9); /* Slightly transparent dark bg */
+            backdrop-filter: blur(10px) saturate(150%);
+            -webkit-backdrop-filter: blur(10px) saturate(150%);
+            border-top: 1px solid #282828;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            z-index: 900; /* Below header but above page content */
+        }
+        .chat-input-form {
+            display: flex;
+            width: 100%;
+            max-width: 900px; /* Match chat container max-width */
+            margin: 0 auto;
+            gap: 1rem;
+        }
+        .chat-input {
+            flex-grow: 1;
+            padding: 1rem 1.5rem;
+            background-color: #1A1A1A; /* Darker input field */
+            border: 1px solid #333333;
+            border-radius: 0.75rem; /* Slightly more rounded */
+            font-size: 1rem;
+            color: #E0E0E0;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+        }
+        .chat-input::placeholder { color: #777777; }
+        .chat-input:focus {
+            outline: none;
+            border-color: #00BFFF; /* Linq Blue */
+            background-color: #222222; /* Slightly lighter on focus */
+            box-shadow: 0 0 0 3px rgba(0, 191, 255, 0.25), 0 0 10px rgba(0, 191, 255, 0.15) inset;
+        }
+        .send-button {
+            padding: 1rem;
+            background: linear-gradient(135deg, #00BFFF, #0095CC); /* Linq Blue gradient */
+            color: #FFFFFF;
+            border: none;
+            border-radius: 0.75rem;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 6px 20px -6px rgba(0, 191, 255, 0.4);
+        }
+        .send-button svg, .send-button i { width: 1.5rem; height: 1.5rem; }
+        .send-button:hover {
+            background: linear-gradient(135deg, #00AADD, #00BFFF);
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 10px 25px -8px rgba(0, 191, 255, 0.6);
+        }
+        .send-button:active { transform: translateY(0px) scale(1); }
+
+        /* Suggested Questions - Enhanced */
+        .suggested-questions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem 1.5rem 1rem;
+            justify-content: center;
+            max-width: 900px; /* Match chat container */
+            margin: 0 auto 1rem auto; /* Centered and with bottom margin */
+        }
+        .suggested-question-btn {
+            background-color: rgba(30, 30, 30, 0.7); /* Semi-transparent dark */
+            backdrop-filter: blur(5px);
+            border: 1px solid #333333;
+            color: #A0A0A0;
+            padding: 0.625rem 1.25rem;
+            border-radius: 0.5rem;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        .suggested-question-btn:hover {
+            background-color: rgba(0, 191, 255, 0.15); /* Linq Blue tint */
+            color: #00BFFF;
+            border-color: rgba(0, 191, 255, 0.4);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0, 191, 255, 0.2);
+        }
+
+        /* Footer */
+        .footer {
+            background-color: #080808; /* Very dark */
+            color: #A0A0A0;
+            padding: 2.5rem 1rem;
+            border-top: 1px solid #1A1A1A;
+            text-align: center;
+            font-size: 0.875rem;
+            margin-top: auto; /* Pushes footer to bottom in flex column */
+        }
+        .footer a { color: #B0B0B0; transition: color 0.2s ease; }
+        .footer a:hover { color: #00BFFF; }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .chat-page-title { font-size: 2.25rem; }
+            .chat-page-subtitle { font-size: 1rem; }
+            .message-bubble { max-width: 88%; font-size: 0.9rem; padding: 0.875rem 1.25rem;}
+            .ai-icon { width: 2rem; height: 2rem; margin-right: 0.75rem;}
+            .ai-icon svg, .ai-icon i { width: 1rem; height: 1rem;}
+            .chat-input { padding: 0.875rem 1.25rem; font-size: 0.95rem; }
+            .send-button { padding: 0.875rem; }
+            .send-button svg, .send-button i { width: 1.25rem; height: 1.25rem; }
+            .chat-container-wrapper { padding-top: 80px; padding-bottom: 90px; } /* Adjusted for potentially shorter header */
+            .page-heading-container { margin-bottom: 1.5rem; }
+            .suggested-questions { padding: 0.75rem 0.5rem 1rem 0.5rem; gap: 0.5rem;}
+            .suggested-question-btn { font-size: 0.75rem; padding: 0.5rem 1rem; }
+        }
+        @media (max-width: 480px) {
+            .message-bubble { max-width: 92%; }
+            .chat-page-title { font-size: 1.85rem;}
+            .chat-page-subtitle { font-size: 0.9rem; }
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div id="header-placeholder"></div>
+
+    <div class="chat-container-wrapper px-2 sm:px-4">
+        <div class="page-heading-container">
+            <h1 class="chat-page-title">Linq <span class="accent-text">AI</span></h1>
+            <p class="chat-page-subtitle">Your Energy Questions Answered</p>
+        </div>
+
+        <div id="chat-window" class="chat-window">
+            <div class="message-bubble ai">
+                <div class="ai-icon">
+                    <i class="fas fa-brain fa-lg"></i>
+                </div>
+                <div class="message-content">
+                    Hello! I am Linq's AI Energy Analyst, equipped with the latest market data and insights. How may I illuminate your energy queries today?
+                    <span class="message-timestamp">Just now</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="suggested-questions" class="suggested-questions">
+            <button class="suggested-question-btn">Future of Green Hydrogen?</button>
+            <button class="suggested-question-btn">Latest on Carbon Capture?</button>
+            <button class="suggested-question-btn">Oil Price Volatility Factors?</button>
+            <button class="suggested-question-btn hidden sm:inline-block">Nuclear Energy Renaissance?</button>
+        </div>
+    </div>
+
+    <div class="chat-input-area">
+        <form id="chat-form" class="chat-input-form">
+            <input type="text" id="chat-input" class="chat-input" placeholder="Ask Linq AI..." autocomplete="off">
+            <button type="submit" class="send-button" aria-label="Send message">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </form>
+    </div>
+
+    <footer class="footer">
+        <p>&copy; <span id="current-year"></span> Linq Energy Intelligence. Advanced AI for a Brighter Future.</p>
+        <nav class="text-xs space-x-3 mt-2">
+            <a href="#">Privacy Policy</a> |
+            <a href="#">Terms of Service</a> |
+            <a href="#">Contact Us</a> |
+            <a href="#">API Status</a>
+        </nav>
+    </footer>
+
+    <script>
+        // --- Function to Initialize and Run All Header Related Logic ---
+        function initializeHeaderAndAuth() {
+            const authLinkDesktopLogin = document.getElementById('authLinkDesktopLogin');
+            const profileAndMenuDesktop = document.getElementById('profileAndMenuDesktop');
+            const authLinkMobile = document.getElementById('authLinkMobile');
+            const logoutButtonMobile = document.getElementById('logoutButtonMobile');
+            const favoritesLinkMobile = document.getElementById('favoritesLinkMobile');
+            const linqAiLinkMobile = document.getElementById('linqAiLinkMobile'); 
+            const earningsLinkMobile = document.getElementById('earningsLinkMobile'); 
+            const desktopSlideOutMenu = document.getElementById('desktop-slideout-menu');
+            const menuOverlay = document.getElementById('menu-overlay'); 
+            const logoutButtonDesktopSlideout = document.getElementById('logoutButtonSlideout');
+            const desktopHamburgerButton = document.getElementById('desktop-hamburger-button');
+            const slideoutCloseButton = document.getElementById('slideout-close-button');
+            const mobileMenuButton = document.getElementById('mobile-menu-button');
+            const mobileMenu = document.getElementById('mobile-menu');
+
+            // Firebase configuration
+            const firebaseConfig = { 
+                apiKey: "AIzaSyD_FCx8sIkrCoQMoKm5xQIvlyAmlqptETk", // Store securely
+                authDomain: "linq-b27a8.firebaseapp.com",
+                projectId: "linq-b27a8",
+                storageBucket: "linq-b27a8.appspot.com",
+                messagingSenderId: "1067901051826",
+                appId: "1:1067901051826:web:44452d1339cdbe2af07aab"
+            };
+            if (!firebase.apps.length) { 
+                firebase.initializeApp(firebaseConfig);
+            }
+            const authInstance = firebase.auth();
+
+            authInstance.onAuthStateChanged(user => {
+                if (user) {
+                    if (authLinkDesktopLogin) authLinkDesktopLogin.classList.add('hidden');
+                    if (profileAndMenuDesktop) {
+                        profileAndMenuDesktop.classList.remove('hidden');
+                        profileAndMenuDesktop.classList.add('flex');
+                    }
+                    if (authLinkMobile) {
+                        authLinkMobile.textContent = "My Profile";
+                        authLinkMobile.href = "profile.html";
+                    }
+                    if (logoutButtonMobile) logoutButtonMobile.classList.remove('hidden');
+                    if (favoritesLinkMobile) favoritesLinkMobile.classList.remove('hidden');
+                    if (linqAiLinkMobile) linqAiLinkMobile.classList.remove('hidden');
+                    if (earningsLinkMobile) earningsLinkMobile.classList.remove('hidden');
+                } else {
+                    if (authLinkDesktopLogin) {
+                        authLinkDesktopLogin.classList.remove('hidden');
+                        authLinkDesktopLogin.classList.add('nav-link-button');
+                    }
+                    if (profileAndMenuDesktop) profileAndMenuDesktop.classList.add('hidden');
+                    if (authLinkMobile) {
+                        authLinkMobile.textContent = "Login";
+                        authLinkMobile.href = "login.html";
+                    }
+                    if (logoutButtonMobile) logoutButtonMobile.classList.add('hidden');
+                    if (favoritesLinkMobile) favoritesLinkMobile.classList.add('hidden');
+                    if (linqAiLinkMobile) linqAiLinkMobile.classList.add('hidden');
+                    if (earningsLinkMobile) earningsLinkMobile.classList.add('hidden');
+                    if (desktopSlideOutMenu && desktopSlideOutMenu.classList.contains('open')) {
+                        closeDesktopMenu();
+                    }
+                }
+                setActiveNavLink();
+            });
+
+            function handleLogout(e) {
+                e.preventDefault();
+                if (desktopSlideOutMenu && desktopSlideOutMenu.classList.contains('open')) closeDesktopMenu();
+                if (mobileMenu && !mobileMenu.classList.contains('hidden')) mobileMenu.classList.add('hidden');
+                authInstance.signOut().then(() => {
+                    console.log("User signed out");
+                    window.location.href = 'index.html'; 
+                }).catch(error => console.error("Sign out error", error));
+            }
+
+            if (logoutButtonDesktopSlideout) logoutButtonDesktopSlideout.addEventListener('click', handleLogout);
+            if (logoutButtonMobile) logoutButtonMobile.addEventListener('click', handleLogout);
+
+            function setActiveNavLink() {
+                const currentPath = window.location.pathname.split("/").pop() || "index.html";
+                // Query for links within the loaded header
+                const navLinks = document.querySelectorAll('#header-placeholder nav.fixed a.nav-link, #header-placeholder #mobile-menu a.nav-link');
+                
+                navLinks.forEach(link => {
+                    link.classList.remove('active');
+                    const linkHref = link.getAttribute('href');
+                    
+                    if (linkHref === currentPath) {
+                        link.classList.add('active');
+                    }
+                    // Special handling for index.html and its "News" link
+                    else if ((currentPath === "index.html" || currentPath === "") && (linkHref === "index.html" || link.dataset.page === "index" || link.dataset.page === "index-mobile")) {
+                        link.classList.add('active');
+                    }
+                     // Explicitly activate LinqAI link if on linqai.html
+                    else if (currentPath === "linqai.html" && linkHref === "linqai.html") {
+                         link.classList.add('active');
+                    }
+                });
+            }
+
+            if (mobileMenuButton && mobileMenu) {
+                mobileMenuButton.addEventListener('click', () => mobileMenu.classList.toggle('hidden'));
+            }
+
+            function openDesktopMenu() {
+                if (desktopSlideOutMenu) desktopSlideOutMenu.classList.add('open');
+                if (menuOverlay) menuOverlay.classList.add('active');
+                document.body.classList.add('overflow-hidden');
+            }
+            function closeDesktopMenu() {
+                if (desktopSlideOutMenu) desktopSlideOutMenu.classList.remove('open');
+                if (menuOverlay) menuOverlay.classList.remove('active');
+                document.body.classList.remove('overflow-hidden');
+            }
+            if (desktopHamburgerButton) {
+                desktopHamburgerButton.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    if (desktopSlideOutMenu && desktopSlideOutMenu.classList.contains('open')) closeDesktopMenu();
+                    else openDesktopMenu();
+                });
+            }
+            if (menuOverlay) menuOverlay.addEventListener('click', closeDesktopMenu);
+            if (slideoutCloseButton) slideoutCloseButton.addEventListener('click', closeDesktopMenu);
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape' && desktopSlideOutMenu && desktopSlideOutMenu.classList.contains('open')) closeDesktopMenu();
+            });
+
+            setActiveNavLink(); // Initial call
+        }
+
+        // Fetch and Inject Header, then Initialize Header Logic
+        fetch('header.html') // Ensure header.html is in the correct path relative to linqai.html
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok for header.html');
+                return response.text();
+            })
+            .then(data => {
+                const headerPlaceholder = document.getElementById('header-placeholder');
+                if (headerPlaceholder) {
+                    headerPlaceholder.innerHTML = data;
+                    initializeHeaderAndAuth(); // Initialize header JS AFTER it's loaded
+        
+                    // Adjust main content padding after header is loaded and its height is known
+                    const fixedHeader = headerPlaceholder.querySelector('nav.fixed');
+                    if (fixedHeader) {
+                        document.querySelector('.chat-container-wrapper').style.paddingTop = fixedHeader.offsetHeight + 20 + 'px'; // 20px buffer
+                    }
+        
+                    // ✅ Set user avatar in header
+                    firebase.auth().onAuthStateChanged(user => {
+                        const avatarImg = document.getElementById('navProfilePic');
+                        if (avatarImg && user) {
+                            if (user.photoURL) {
+                                avatarImg.src = user.photoURL;
+                            } else if (user.displayName) {
+                                const initials = user.displayName.charAt(0).toUpperCase();
+                                avatarImg.src = `https://placehold.co/40x40/2C2F33/EAEAEA?text=${initials}`;
+                            }
+                        }
+                    });
+        
+                } else {
+                    console.error('Header placeholder element not found.');
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching header:', error);
+                const headerPlaceholder = document.getElementById('header-placeholder');
+                if (headerPlaceholder) {
+                    headerPlaceholder.innerHTML = "<p class='text-red-500 text-center py-3'>Error loading navigation.</p>";
+                }
+            });
+
+
+        // --- LinqAI Page Specific JavaScript ---
+        const chatWindow = document.getElementById('chat-window');
+        const chatForm = document.getElementById('chat-form');
+        const chatInput = document.getElementById('chat-input');
+        const suggestedQuestionsContainer = document.getElementById('suggested-questions');
+
+        document.getElementById('current-year').textContent = new Date().getFullYear();
+
+        // Function to add a message to the chat window
+        function addMessageToChat(message, type, timestamp) {
+            const messageBubble = document.createElement('div');
+            messageBubble.classList.add('message-bubble', type);
+
+            let contentHTML = '';
+            if (type === 'ai') {
+                contentHTML += `<div class="ai-icon"><i class="fas fa-brain fa-lg"></i></div>`;
+            }
+            // Sanitize message to prevent XSS if displaying user input directly as HTML
+            const sanitizedMessage = message.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+            contentHTML += `<div class="message-content">${sanitizedMessage}<span class="message-timestamp">${timestamp || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span></div>`;
+            messageBubble.innerHTML = contentHTML;
+
+            chatWindow.appendChild(messageBubble);
+            chatWindow.scrollTo({ top: chatWindow.scrollHeight, behavior: 'smooth' });
+        }
+
+        function showTypingIndicator() {
+            if (document.querySelector('.typing-indicator')) return;
+            const typingIndicator = document.createElement('div');
+            typingIndicator.classList.add('message-bubble', 'ai', 'typing-indicator');
+            typingIndicator.innerHTML = `<div class="ai-icon"><i class="fas fa-brain fa-lg"></i></div><div class="message-content"><span></span><span></span><span></span></div>`;
+            chatWindow.appendChild(typingIndicator);
+            chatWindow.scrollTo({ top: chatWindow.scrollHeight, behavior: 'smooth' });
+        }
+
+        function removeTypingIndicator() {
+            const indicatorElement = document.querySelector('.typing-indicator');
+            if (indicatorElement && indicatorElement.parentNode === chatWindow) {
+                chatWindow.removeChild(indicatorElement);
+            }
+        }
+
+        chatForm.addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const userMessage = chatInput.value.trim();
+            if (userMessage) {
+                addMessageToChat(userMessage, 'user');
+                chatInput.value = '';
+                chatInput.focus();
+                showTypingIndicator();
+                setTimeout(() => {
+                    removeTypingIndicator();
+                    let aiResponse = "Thinking about: '" + userMessage.replace(/</g, "&lt;").replace(/>/g, "&gt;") + "'. ";
+                    if (userMessage.toLowerCase().includes("solar")) {
+                        aiResponse += "Solar technology is advancing rapidly! Perovskite solar cells are showing incredible promise, potentially offering higher efficiencies and lower manufacturing costs compared to traditional silicon-based panels. We're also seeing bifacial panels, which capture light from both sides, becoming more common.";
+                    } else if (userMessage.toLowerCase().includes("oil") || userMessage.toLowerCase().includes("wti")) {
+                        aiResponse += "Global oil markets are currently navigating a complex landscape of demand recovery post-pandemic, geopolitical tensions affecting supply chains (like events in Eastern Europe or the Middle East), and the ongoing strategic decisions by OPEC+. Inventory levels and economic growth forecasts in major economies like the US and China also play a crucial role.";
+                    } else if (userMessage.toLowerCase().includes("hydrogen")) {
+                        aiResponse += "Green hydrogen is a key focus for decarbonization. The main challenges are reducing the cost of electrolysis (splitting water using renewable energy) and building out the necessary infrastructure for storage and transport. Significant investments and policy support are driving innovation in these areas.";
+                    } else if (userMessage.toLowerCase().includes("carbon capture") || userMessage.toLowerCase().includes("ccus")) {
+                        aiResponse += "Carbon Capture, Utilization, and Storage (CCUS) technologies are critical for industries that are hard to decarbonize. Innovations are focused on more efficient capture solvents, direct air capture (DAC) advancements, and finding viable, long-term storage solutions or utilization pathways like converting CO2 into fuels or building materials.";
+                    } else {
+                        aiResponse += "That's an insightful question! My knowledge base covers a vast array of energy topics, from renewable innovations to market dynamics and policy impacts. Feel free to ask more specifics!";
+                    }
+                    addMessageToChat(aiResponse, 'ai');
+                }, 1200 + Math.random() * 1300);
+            }
+        });
+
+        suggestedQuestionsContainer.addEventListener('click', function(event) {
+            if (event.target.classList.contains('suggested-question-btn')) {
+                const question = event.target.textContent;
+                chatInput.value = question;
+                chatInput.focus();
+                chatForm.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+            }
+        });
+
+        if(chatInput) chatInput.focus();
+    </script>
+</body>
+</html>
